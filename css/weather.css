@@ -5,16 +5,16 @@
 .weather-dash::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,7,11,0.36),rgba(6,7,11,0.48));pointer-events:none}
 .weather-dash>*{position:relative;z-index:2;flex-shrink:1;min-height:0}
 /* Current weather - hero section */
-.weather-current{text-align:center;position:relative;flex:2 1 0;padding:clamp(8px,1.6vh,20px);background:linear-gradient(135deg,rgba(245,200,66,0.12),rgba(247,147,26,0.08));border-radius:clamp(6px,1vmin,14px);border:1px solid rgba(245,200,66,0.2);box-shadow:0 4px 20px rgba(245,200,66,0.15)}
+.weather-current{text-align:center;position:relative;flex:1.4 1 0;padding:clamp(6px,1.1vh,14px);background:linear-gradient(135deg,rgba(245,200,66,0.12),rgba(247,147,26,0.08));border-radius:clamp(6px,1vmin,14px);border:1px solid rgba(245,200,66,0.2);box-shadow:0 4px 20px rgba(245,200,66,0.15)}
 .weather-location{display:inline-flex;align-items:center;gap:clamp(4px,0.7vw,8px);padding:clamp(2px,0.4vh,4px) clamp(6px,1vw,12px);border-radius:100px;background:rgba(245,200,66,0.15);border:1px solid rgba(245,200,66,0.25);font-size:clamp(7px,1.2vmin,11px);color:var(--gold);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:clamp(2px,0.4vh,6px);backdrop-filter:blur(10px)}
 .weather-location .dot{width:clamp(3px,0.5vmin,5px);height:clamp(3px,0.5vmin,5px);border-radius:50%;background:var(--gold);box-shadow:0 0 12px rgba(245,200,66,0.8);animation:pulse 2s infinite}
 .weather-temp-display{display:flex;align-items:baseline;justify-content:center;gap:clamp(2px,0.4vw,4px)}
-.weather-temp-num{font-family:'JetBrains Mono',monospace;font-size:clamp(40px,11vmin,110px);font-weight:800;background:linear-gradient(135deg,#f5c842,#f7931a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-3px;filter:drop-shadow(0 2px 20px rgba(245,200,66,0.4))}
-.weather-temp-unit{font-size:clamp(18px,5.2vmin,48px);font-weight:400;color:rgba(245,200,66,0.4);line-height:1}
+.weather-temp-num{font-family:'JetBrains Mono',monospace;font-size:clamp(28px,7.7vmin,77px);font-weight:800;background:linear-gradient(135deg,#f5c842,#f7931a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-3px;filter:drop-shadow(0 2px 20px rgba(245,200,66,0.4))}
+.weather-temp-unit{font-size:clamp(13px,3.6vmin,34px);font-weight:400;color:rgba(245,200,66,0.4);line-height:1}
 .weather-desc-row{display:flex;justify-content:center;align-items:center;gap:clamp(4px,0.8vw,10px);margin-top:clamp(2px,0.4vh,6px)}
-.weather-icon{font-size:clamp(22px,5.5vmin,44px);filter:drop-shadow(0 2px 8px rgba(245,200,66,0.4))}
-.weather-desc{font-size:clamp(11px,2.2vmin,20px);font-weight:600;color:var(--hi);text-transform:capitalize;letter-spacing:0.3px}
-.weather-feels{font-size:clamp(8px,1.5vmin,14px);color:var(--mid);margin-top:clamp(2px,0.4vh,6px);font-weight:500}
+.weather-icon{font-size:clamp(15px,3.8vmin,31px);filter:drop-shadow(0 2px 8px rgba(245,200,66,0.4))}
+.weather-desc{font-size:clamp(8px,1.5vmin,14px);font-weight:600;color:var(--hi);text-transform:capitalize;letter-spacing:0.3px}
+.weather-feels{font-size:clamp(6px,1.05vmin,10px);color:var(--mid);margin-top:clamp(1px,0.28vh,4px);font-weight:500}
 /* Weather stats grid */
 .weather-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(2px,0.4vw,6px);flex-shrink:1}
 .weather-stat{background:var(--card);backdrop-filter:blur(10px);padding:clamp(3px,0.6vh,10px) clamp(2px,0.4vw,8px);text-align:center;border-radius:clamp(5px,0.8vmin,10px);border:1px solid var(--border);transition:all .3s;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
