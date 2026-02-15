@@ -38,13 +38,13 @@
       "output": "dist"
     },
     "win": {
+      "verifyUpdateCodeSignature": true,
       "target": [
         "nsis"
       ],
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {
-      "verifyUpdateCodeSignature": true,
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
