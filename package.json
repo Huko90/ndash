@@ -3,6 +3,9 @@
   "version": "1.0.6",
   "description": "BTC/Weather/PC dashboard desktop package with setup wizard",
   "author": "Niko",
+  "engines": {
+    "node": ">=20 <21"
+  },
   "main": "desktop/main.js",
   "scripts": {
     "start": "electron .",
@@ -50,6 +53,9 @@
         "nsis"
       ],
       "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,

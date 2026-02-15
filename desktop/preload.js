@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('DesktopApi', {
   openDashboard: () => ipcRenderer.invoke('app:open-dashboard'),
   copyText: (text) => ipcRenderer.invoke('app:copy-text', text),
   openFileInFolder: (path) => ipcRenderer.invoke('app:open-file', path),
+  openUpdateLog: () => ipcRenderer.invoke('app:open-update-log'),
   rerunWizard: () => ipcRenderer.invoke('wizard:rerun')
 });

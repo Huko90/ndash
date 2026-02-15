@@ -538,10 +538,17 @@ var App = (function() {
             window.DesktopApi.getState()
             .then(function(state) {
                 renderDesktopAccessUi(state);
+                loadHealthUi();
             })
             .catch(function() {
                 renderDesktopAccessUi(null);
             });
+        }
+        function fmtTs(ts) {
+            if (!ts) return 'n/a';
+            var d = new Date(ts);
+            if (isNaN(d.getTime())) return 'n/a';
+            return d.toLocaleString();
         }
         function msToHuman(ms) {
             var total = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
@@ -565,7 +572,12 @@ var App = (function() {
                 var req = (data.metrics && data.metrics.requests) || 0;
                 var pcOk = (data.metrics && data.metrics.api && data.metrics.api.pc && data.metrics.api.pc.ok) || 0;
                 var pcErr = (data.metrics && data.metrics.api && data.metrics.api.pc && data.metrics.api.pc.error) || 0;
-                el.settingsHealth.textContent = 'Health: ok · Uptime ' + uptime + ' · Requests ' + req + ' · PC ok/err ' + pcOk + '/' + pcErr;
+                var version = (lastDesktopState && lastDesktopState.appVersion) ? ('v' + lastDesktopState.appVersion) : 'browser';
+                var u = (lastDesktopState && lastDesktopState.updates) || {};
+                var updateText = u.status ? (' · Updater ' + u.status) : '';
+                var checkText = u.lastCheckAt ? (' · Last check ' + fmtTs(u.lastCheckAt)) : '';
+                var errText = u.lastError ? (' · Last update error: ' + u.lastError) : '';
+                el.settingsHealth.textContent = 'Health: ok · ' + version + ' · Uptime ' + uptime + ' · Requests ' + req + ' · PC ok/err ' + pcOk + '/' + pcErr + updateText + checkText + errText;
             })
             .catch(function() {
                 el.settingsHealth.textContent = 'Health: unavailable';

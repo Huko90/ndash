@@ -14,6 +14,12 @@ let localServer = null;
 let serverState = null;
 let updateStatus = 'Updates: idle';
 let updateCheckTimer = null;
+let updateReadyInfo = null;
+let lastUpdateError = '';
+let lastUpdateCheckAt = 0;
+let lastUpdateAvailableVersion = '';
+let manualCheckPending = false;
+let manualErrorShown = false;
 
 function projectRoot() {
   return path.resolve(__dirname, '..');
@@ -174,6 +180,21 @@ function updateTrayMenu() {
       }
     },
     {
+      label: 'Install Downloaded Update Now',
+      enabled: !!updateReadyInfo,
+      click: () => {
+        if (!updateReadyInfo) return;
+        isQuitting = true;
+        autoUpdater.quitAndInstall();
+      }
+    },
+    {
+      label: 'Open Update Log',
+      click: () => {
+        shell.showItemInFolder(updateLogPath());
+      }
+    },
+    {
       label: updateStatus,
       enabled: false
     },
@@ -192,6 +213,19 @@ function updateTrayMenu() {
 function setUpdateStatus(text) {
   updateStatus = text;
   if (tray) updateTrayMenu();
+}
+
+function updateLogPath() {
+  return path.join(app.getPath('userData'), 'update.log');
+}
+
+function logUpdateEvent(event, detail) {
+  const ts = new Date().toISOString();
+  const line = `[${ts}] ${event}${detail ? ` | ${detail}` : ''}\n`;
+  try {
+    fs.mkdirSync(path.dirname(updateLogPath()), { recursive: true });
+    fs.appendFileSync(updateLogPath(), line, 'utf8');
+  } catch (_) {}
 }
 
 function hasPackagedUpdateConfig() {
@@ -236,12 +270,19 @@ async function runUpdateCheck(manual) {
     return;
   }
   try {
+    manualCheckPending = !!manual;
+    manualErrorShown = false;
+    lastUpdateCheckAt = Date.now();
+    logUpdateEvent('check-start', manual ? 'manual' : 'auto');
     setUpdateStatus('Updates: checking...');
     await autoUpdater.checkForUpdates();
   } catch (err) {
     const msg = (err && err.message) ? err.message : String(err);
+    lastUpdateError = msg;
+    logUpdateEvent('check-error', msg);
     setUpdateStatus('Updates: error');
     if (manual) {
+      manualErrorShown = true;
       await dialog.showMessageBox(mainWindow || null, {
         type: 'error',
         title: 'Update Check Failed',
@@ -249,6 +290,7 @@ async function runUpdateCheck(manual) {
         detail: msg
       });
     }
+    manualCheckPending = false;
   }
 }
 
@@ -261,43 +303,88 @@ function setupAutoUpdates() {
   const updateBaseUrl = String(process.env.BTCT_UPDATE_URL || '').trim();
   const githubFeed = githubFeedFromEnv();
   const channel = String(process.env.BTCT_UPDATE_CHANNEL || 'latest').trim();
+  const prereleaseEnabled = process.env.BTCT_UPDATE_ALLOW_PRERELEASE === '1' || channel !== 'latest';
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowDowngrade = false;
+  autoUpdater.allowPrerelease = prereleaseEnabled;
   if (updateBaseUrl) {
     autoUpdater.setFeedURL({ provider: 'generic', url: updateBaseUrl, channel });
     setUpdateStatus('Updates: configured (generic)');
+    logUpdateEvent('feed', `generic ${updateBaseUrl} channel=${channel}`);
   } else if (githubFeed) {
     autoUpdater.setFeedURL(githubFeed);
     setUpdateStatus('Updates: configured (github)');
+    logUpdateEvent('feed', `github ${githubFeed.owner}/${githubFeed.repo} prerelease=${prereleaseEnabled ? '1' : '0'}`);
   } else if (hasPackagedUpdateConfig()) {
     setUpdateStatus('Updates: configured (packaged)');
+    logUpdateEvent('feed', `packaged channel=${channel} prerelease=${prereleaseEnabled ? '1' : '0'}`);
   } else {
     setUpdateStatus('Updates: not configured');
     return;
   }
 
   autoUpdater.on('checking-for-update', () => {
+    lastUpdateCheckAt = Date.now();
+    logUpdateEvent('checking');
     setUpdateStatus('Updates: checking...');
   });
   autoUpdater.on('update-available', (info) => {
     const nextVersion = info && info.version ? info.version : 'new version';
+    lastUpdateAvailableVersion = nextVersion;
+    logUpdateEvent('update-available', nextVersion);
     setUpdateStatus(`Updates: downloading ${nextVersion}`);
+    if (manualCheckPending) {
+      dialog.showMessageBox(mainWindow || null, {
+        type: 'info',
+        title: 'Update Found',
+        message: `Version ${nextVersion} found.`,
+        detail: 'Download started in background.'
+      }).catch(() => {});
+      manualCheckPending = false;
+    }
   });
   autoUpdater.on('update-not-available', () => {
+    logUpdateEvent('update-not-available');
     setUpdateStatus('Updates: up to date');
+    if (manualCheckPending) {
+      dialog.showMessageBox(mainWindow || null, {
+        type: 'info',
+        title: 'Updates',
+        message: 'You are up to date.',
+        detail: `Current version: ${app.getVersion()}`
+      }).catch(() => {});
+      manualCheckPending = false;
+    }
   });
   autoUpdater.on('download-progress', (p) => {
     const pct = p && typeof p.percent === 'number' ? p.percent.toFixed(0) : '?';
     setUpdateStatus(`Updates: downloading ${pct}%`);
+    logUpdateEvent('download-progress', `${pct}%`);
   });
   autoUpdater.on('error', (err) => {
-    console.error('Auto-update error:', err && err.message ? err.message : err);
+    const msg = err && err.message ? err.message : String(err);
+    lastUpdateError = msg;
+    logUpdateEvent('error', msg);
+    console.error('Auto-update error:', msg);
     setUpdateStatus('Updates: error');
+    if (manualCheckPending && !manualErrorShown) {
+      manualErrorShown = true;
+      dialog.showMessageBox(mainWindow || null, {
+        type: 'error',
+        title: 'Update Error',
+        message: 'Update failed.',
+        detail: msg
+      }).catch(() => {});
+    }
+    manualCheckPending = false;
   });
   autoUpdater.on('update-downloaded', async (info) => {
     const nextVersion = info && info.version ? info.version : 'new version';
+    updateReadyInfo = info || { version: nextVersion };
+    logUpdateEvent('update-downloaded', nextVersion);
     setUpdateStatus(`Updates: ready (${nextVersion})`);
+    updateTrayMenu();
     const res = await dialog.showMessageBox(mainWindow || null, {
       type: 'question',
       buttons: ['Restart Now', 'Later'],
@@ -311,6 +398,7 @@ function setupAutoUpdates() {
       isQuitting = true;
       autoUpdater.quitAndInstall();
     }
+    manualCheckPending = false;
   });
 
   runUpdateCheck(false);
@@ -442,7 +530,16 @@ app.on('window-all-closed', async () => {
 ipcMain.handle('app:get-state', async () => ({
   config: configStore.get(),
   server: serverState,
-  configPath: configStore.getFilePath()
+  configPath: configStore.getFilePath(),
+  appVersion: app.getVersion(),
+  updates: {
+    status: updateStatus,
+    readyVersion: updateReadyInfo && updateReadyInfo.version ? updateReadyInfo.version : '',
+    availableVersion: lastUpdateAvailableVersion,
+    lastError: lastUpdateError,
+    lastCheckAt: lastUpdateCheckAt,
+    logPath: updateLogPath()
+  }
 }));
 
 ipcMain.handle('wizard:test-endpoint', async (_evt, endpoint) => testEndpoint(endpoint));
@@ -512,4 +609,9 @@ ipcMain.handle('app:open-file', async (_evt, p) => {
   if (!p) return { ok: false };
   await shell.showItemInFolder(p);
   return { ok: true };
+});
+
+ipcMain.handle('app:open-update-log', async () => {
+  await shell.showItemInFolder(updateLogPath());
+  return { ok: true, path: updateLogPath() };
 });
