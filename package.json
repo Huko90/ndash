@@ -1,6 +1,6 @@
 {
   "name": "btctracker-desktop",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "BTC/Weather/PC dashboard desktop package with setup wizard",
   "author": "Niko",
   "engines": {
