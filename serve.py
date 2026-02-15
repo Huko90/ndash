@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple HTTP server for BTC Ticker Kiosk"""
+"""Simple HTTP server for nDash kiosk mode"""
 import http.server
 import socketserver
 import os
@@ -75,7 +75,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return len(arr) > limit
 
     def _handle_pc_proxy(self):
-        req = Request(PC_ENDPOINT, headers={"User-Agent": "btcticker-proxy/1.0"})
+        req = Request(PC_ENDPOINT, headers={"User-Agent": "ndash-proxy/1.0"})
         try:
             with urlopen(req, timeout=5) as upstream:
                 payload = upstream.read()
@@ -121,7 +121,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         params = dict(params or {})
         params["apiKey"] = api_key
         url = f"{STOCKS_API_BASE}{path}?{urlencode(params)}"
-        req = Request(url, headers={"User-Agent": "btcticker-stocks-proxy/1.0"})
+        req = Request(url, headers={"User-Agent": "ndash-stocks-proxy/1.0"})
         with urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
 
@@ -278,5 +278,5 @@ class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
 with ReusableTCPServer(("0.0.0.0", PORT), Handler) as httpd:
-    print(f"Serving BTC Ticker at http://0.0.0.0:{PORT}")
+    print(f"Serving nDash at http://0.0.0.0:{PORT}")
     httpd.serve_forever()

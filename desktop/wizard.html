@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BTC Tracker Setup Wizard</title>
+  <title>nDash Setup Wizard</title>
   <style>
     :root{--bg:#07090f;--card:rgba(255,255,255,.04);--line:rgba(255,255,255,.12);--text:#e9edf5;--muted:#a7b0c0;--gold:#f5c842;--ok:#00e676;--err:#ff1744}
     *{box-sizing:border-box}
@@ -41,7 +41,7 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>BTC Tracker Setup Wizard</h1>
+      <h1>nDash Setup Wizard</h1>
       <p class="muted">Guided setup for sharing this dashboard: Libre Hardware Monitor source, endpoint checks, HTTPS certificate guidance, run mode, and final LAN URLs.</p>
       <div class="progress">
         <span class="tag active">1. Libre Hardware</span>
@@ -62,8 +62,8 @@
           <li>Please click <span class="k">Test Endpoint</span> below to test connection.</li>
           <li>You need inbound allow rules for your dashboard ports (default <span class="k">8888</span> and <span class="k">8443</span>) on Private network.</li>
           <li>PowerShell (Run as Administrator):</li>
-          <li><span class="k">New-NetFirewallRule -DisplayName "BTC Tracker HTTP 8888" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8888 -Profile Private</span></li>
-          <li><span class="k">New-NetFirewallRule -DisplayName "BTC Tracker HTTPS 8443" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -Profile Private</span></li>
+          <li><span class="k">New-NetFirewallRule -DisplayName "nDash HTTP 8888" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8888 -Profile Private</span></li>
+          <li><span class="k">New-NetFirewallRule -DisplayName "nDash HTTPS 8443" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -Profile Private</span></li>
           <li>To access dashboards from other devices, install the dashboard certificate on every monitoring device (tablet/phone/PC).</li>
           <li>Install the app on the main device first, then on each monitoring device open and install the certificate from: <span class="k" id="certInstallUrl">http://&lt;detected-ip&gt;:8888/dashboard-cert.crt</span>.</li>
           <li>After certificate install, open the final secure dashboard URL: <span class="k" id="finalSecureUrl">https://&lt;detected-ip&gt;:8443</span>.</li>

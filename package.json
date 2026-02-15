@@ -1,7 +1,7 @@
 {
-  "name": "btctracker-desktop",
+  "name": "ndash-desktop",
   "version": "1.0.11",
-  "description": "BTC/Weather/PC dashboard desktop package with setup wizard",
+  "description": "nDash desktop dashboard package with setup wizard",
   "author": "Niko",
   "engines": {
     "node": ">=20 <21"
@@ -26,8 +26,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.btctracker.desktop",
-    "productName": "BTC Tracker Desktop",
+    "appId": "com.ndash.desktop",
+    "productName": "nDash",
     "publish": [
       {
         "provider": "github",
@@ -54,7 +54,7 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "BTC-Tracker-Desktop-Setup-${version}.${ext}"
+      "artifactName": "nDash-Setup-${version}.${ext}"
     },
     "linux": {
       "icon": "build/icon.png"

@@ -1,5 +1,5 @@
 [Unit]
-Description=BTC Ticker Kiosk Web Server
+Description=nDash Kiosk Web Server
 After=network.target
 
 [Service]

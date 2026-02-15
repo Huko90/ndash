@@ -138,7 +138,7 @@ function trayIcon() {
 function createTray() {
   if (tray) return;
   tray = new Tray(trayIcon());
-  tray.setToolTip('BTC Tracker Desktop');
+  tray.setToolTip('nDash');
   tray.on('double-click', () => {
     if (!mainWindow) return;
     mainWindow.show();
@@ -248,7 +248,7 @@ function maybeShowPostUpdateNotes() {
     dialog.showMessageBox(mainWindow || null, {
       type: 'info',
       title: 'App Updated',
-      message: `BTC Tracker Desktop updated to ${current}.`,
+      message: `nDash updated to ${current}.`,
       detail: `Previous version: ${prev}`
     }).catch(() => {});
   }
@@ -468,7 +468,7 @@ function createMainWindow() {
     height: 820,
     minWidth: 980,
     minHeight: 680,
-    title: 'BTC Tracker Desktop',
+    title: 'nDash',
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')

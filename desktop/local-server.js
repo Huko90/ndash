@@ -46,7 +46,7 @@ function ensureCert(certDir) {
   const ips = localIpv4List();
   const altNames = [{ type: 2, value: 'localhost' }, { type: 7, ip: '127.0.0.1' }];
   ips.forEach((ip) => altNames.push({ type: 7, ip: ip }));
-  const attrs = [{ name: 'commonName', value: 'btctracker.local' }];
+  const attrs = [{ name: 'commonName', value: 'ndash.local' }];
   const pems = selfsigned.generate(attrs, {
     days: 3650,
     keySize: 2048,

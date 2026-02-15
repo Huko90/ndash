@@ -639,7 +639,7 @@ if (notifyPermBtn) {
         Notification.requestPermission().then(function(result) {
             if (result === 'granted') {
                 showToast('Notifications enabled.', 'ok', 2600);
-                try { new Notification('BTC Tracker', { body: 'Desktop notifications are now enabled.' }); } catch (e) {}
+                try { new Notification('nDash', { body: 'Desktop notifications are now enabled.' }); } catch (e) {}
                 return;
             }
             if (result === 'denied') {

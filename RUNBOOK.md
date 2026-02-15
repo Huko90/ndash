@@ -1,4 +1,4 @@
-# BTC Tracker Runbook
+# nDash Runbook
 
 Single operational reference for desktop packaging, kiosk hosting, and troubleshooting.
 
@@ -29,8 +29,8 @@ Use `serve.py` for LAN hosting.
    - `python3 serve.py`
 2. Or systemd:
    - `sudo systemctl daemon-reload`
-   - `sudo systemctl restart btcticker.service`
-   - `sudo systemctl status btcticker.service`
+   - `sudo systemctl restart ndash.service`
+   - `sudo systemctl status ndash.service`
 
 Important env vars:
 - `BTCT_PC_ENDPOINT`: upstream Libre endpoint

@@ -1,4 +1,4 @@
-# BTC Tracker Operations Notes (2026-02-12)
+# nDash Operations Notes (2026-02-12)
 
 For consolidated ongoing operations and troubleshooting, prefer `RUNBOOK.md`.
 
@@ -21,7 +21,7 @@ For consolidated ongoing operations and troubleshooting, prefer `RUNBOOK.md`.
 7. Switched frontend PC endpoint to same-origin proxy:
    - `js/config.js` uses `pc.endpoint: '/api/pc'`
 8. Added service-level endpoint config:
-   - `btcticker.service` includes:
+   - `ndash.service` includes:
      - `Environment=BTCT_PC_ENDPOINT=http://192.168.0.118:8085/data.json`
 
 ## What Needs To Be Done (Now)
@@ -29,9 +29,9 @@ For consolidated ongoing operations and troubleshooting, prefer `RUNBOOK.md`.
 1. Reload systemd units:
    - `sudo systemctl daemon-reload`
 2. Restart the dashboard service:
-   - `sudo systemctl restart btcticker.service`
+   - `sudo systemctl restart ndash.service`
 3. Verify service is healthy:
-   - `sudo systemctl status btcticker.service`
+   - `sudo systemctl status ndash.service`
 4. Verify proxy works from tablet/Pi browser:
    - open `http://<PI_IP>:8888/api/pc`
    - expected: JSON payload from the main PC telemetry source
@@ -39,7 +39,7 @@ For consolidated ongoing operations and troubleshooting, prefer `RUNBOOK.md`.
 ## Ongoing Maintenance
 
 1. If main PC IP changes:
-   - update `BTCT_PC_ENDPOINT` in `btcticker.service`
+   - update `BTCT_PC_ENDPOINT` in `ndash.service`
    - run daemon-reload + restart service
 2. If weather location changes:
    - edit `js/config.js`:

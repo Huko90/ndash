@@ -1,4 +1,4 @@
-# Desktop Packaging (Phase 1)
+# nDash Desktop Packaging (Phase 1)
 
 For current day-to-day operations, prefer `RUNBOOK.md`.
 
