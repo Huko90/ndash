@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BTC Tracker Setup Wizard</title>
+  <style>
+    :root{--bg:#07090f;--card:rgba(255,255,255,.04);--line:rgba(255,255,255,.12);--text:#e9edf5;--muted:#a7b0c0;--gold:#f5c842;--ok:#00e676;--err:#ff1744}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 10% -10%,rgba(245,200,66,.12),transparent 35%),radial-gradient(circle at 95% 110%,rgba(44,86,255,.11),transparent 35%),var(--bg);color:var(--text)}
+    .wrap{max-width:1040px;margin:22px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+    h1{margin:0 0 8px;font-size:24px}
+    h2{margin:0;font-size:16px}
+    .muted{color:var(--muted)}
+    .progress{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+    .tag{padding:5px 9px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--muted);background:rgba(255,255,255,.02)}
+    .tag.active{border-color:rgba(245,200,66,.35);color:var(--gold);background:rgba(245,200,66,.1)}
+    .step{margin-top:12px;padding-top:12px;border-top:1px dashed rgba(255,255,255,.14)}
+    .step-title{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;font-size:12px;background:rgba(245,200,66,.15);border:1px solid rgba(245,200,66,.3);color:var(--gold)}
+    .hint{font-size:13px;line-height:1.45;color:var(--muted);margin:0 0 8px}
+    .check{margin:6px 0 0 0;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.45}
+    .check a{color:var(--gold);text-decoration-color:rgba(245,200,66,.55)}
+    .check a:hover{color:#ffd96f}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .full{grid-column:1/-1}
+    label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+    input,select{height:38px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.22);color:var(--text);padding:0 10px}
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+    button{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-weight:600}
+    button.primary{background:rgba(245,200,66,.14);border-color:rgba(245,200,66,.32);color:var(--gold)}
+    .status{margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.4}
+    .k{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .ok{color:var(--ok)}
+    .err{color:var(--err)}
+    .panel{border:1px solid var(--line);border-radius:10px;padding:10px;background:rgba(255,255,255,.02)}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>BTC Tracker Setup Wizard</h1>
+      <p class="muted">Guided setup for sharing this dashboard: Libre Hardware Monitor source, endpoint checks, HTTPS certificate guidance, run mode, and final LAN URLs.</p>
+      <div class="progress">
+        <span class="tag active">1. Libre Hardware</span>
+        <span class="tag active">2. Endpoint Test</span>
+        <span class="tag active">3. Weather/BTC</span>
+        <span class="tag active">4. Network/Mode</span>
+        <span class="tag active">5. Certificate + Final URL</span>
+      </div>
+
+      <div class="step">
+        <div class="step-title"><span class="badge">1</span><h2>Libre Hardware Monitor Setup (Source PC)</h2></div>
+        <p class="hint">On the PC that provides temperatures, install Libre Hardware Monitor, launch it, and enable web/JSON output. Keep it running whenever you want live CPU/GPU data.</p>
+        <ul class="check">
+          <li>Install Libre Hardware Monitor (<a class="k" href="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.5" target="_blank" rel="noreferrer">v0.9.5 release</a>) and scroll to the bottom to download <span class="k">LibreHardwareMonitor.zip</span>.</li>
+          <li>Run it as administrator.</li>
+          <li><span class="k">Options -> Interface/Port</span> have to be <span class="k">Network Interface: 0.0.0.0</span> and <span class="k">Port Number: 8085</span>.</li>
+          <li>Go to <span class="k">Options -> Remote Web Server -> Run</span>.</li>
+          <li>Please click <span class="k">Test Endpoint</span> below to test connection.</li>
+          <li>You need inbound allow rules for your dashboard ports (default <span class="k">8888</span> and <span class="k">8443</span>) on Private network.</li>
+          <li>PowerShell (Run as Administrator):</li>
+          <li><span class="k">New-NetFirewallRule -DisplayName "BTC Tracker HTTP 8888" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8888 -Profile Private</span></li>
+          <li><span class="k">New-NetFirewallRule -DisplayName "BTC Tracker HTTPS 8443" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -Profile Private</span></li>
+          <li>To access dashboards from other devices, install the dashboard certificate on every monitoring device (tablet/phone/PC).</li>
+          <li>Install the app on the main device first, then on each monitoring device open and install the certificate from: <span class="k" id="certInstallUrl">http://&lt;detected-ip&gt;:8888/dashboard-cert.crt</span>.</li>
+          <li>After certificate install, open the final secure dashboard URL: <span class="k" id="finalSecureUrl">https://&lt;detected-ip&gt;:8443</span>.</li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <div class="step-title"><span class="badge">2</span><h2>PC Endpoint + Diagnostics</h2></div>
+        <div class="grid">
+          <label class="full">PC Endpoint URL
+            <input id="pcEndpoint" placeholder="http://&lt;detected-ip&gt;:8085/data.json">
+          </label>
+          <label>PC Poll (ms)
+            <input id="pcPoll" type="number" min="500" step="100">
+          </label>
+          <label>Default BTC Symbol
+            <input id="btcSymbol" placeholder="BTCUSDT">
+          </label>
+        </div>
+        <div class="actions" style="justify-content:flex-start;margin-top:10px">
+          <button id="testEndpointBtn">Test Endpoint</button>
+        </div>
+        <div id="endpointStatus" class="status muted">No endpoint test run yet.</div>
+      </div>
+
+      <div class="step">
+        <div class="step-title"><span class="badge">3</span><h2>Weather + Market Defaults</h2></div>
+        <div class="grid">
+          <label class="full">City Label
+            <input id="weatherName" placeholder="Varna, Bulgaria">
+          </label>
+          <label>Latitude
+            <input id="weatherLat" type="number" step="0.0001">
+          </label>
+          <label>Longitude
+            <input id="weatherLon" type="number" step="0.0001">
+          </label>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-title"><span class="badge">4</span><h2>Network + Runtime Mode</h2></div>
+        <div class="grid">
+          <label>HTTP Port
+            <input id="httpPort" type="number" min="1024" max="65535">
+          </label>
+          <label>HTTPS Port
+            <input id="httpsPort" type="number" min="1024" max="65535">
+          </label>
+          <label>Preferred URL Mode
+            <select id="preferHttps"><option value="true">HTTPS (recommended)</option><option value="false">HTTP</option></select>
+          </label>
+          <label>Server Runtime
+            <select id="runtimeMode"><option value="app_open">Run only while app is open</option><option value="background">Keep running in background (tray)</option></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-title"><span class="badge">5</span><h2>Certificate Install + Final URL</h2></div>
+        <div class="panel">
+          <p class="hint" style="margin-bottom:6px">If you want to open the dashboard in a browser using the secure HTTPS final URL (phone/tablet/other PC), you must install this certificate on each client device so the browser trusts the connection. Without it, browsers will block or warn on HTTPS. (In-app desktop mode does not require this step.)</p>
+          <ul class="check" style="margin-top:0">
+            <li>Windows quick steps: <span class="k">Open Certificate File -> Double click local-dashboard.crt -> Install Certificate -> Current User -> Automaticly select -> Certificate Store Selected -> Finish</span>.</li>
+            <li>Windows: import cert into <span class="k">Trusted Root Certification Authorities</span>.</li>
+            <li>Android/Tablet: install as trusted CA certificate.</li>
+            <li>Then open the final URL shown below.</li>
+          </ul>
+          <div id="urls" class="status muted k">Loading server URLs...</div>
+        </div>
+        <div id="status" class="status muted"></div>
+      </div>
+
+      <div class="actions">
+        <button id="copyUrlBtn">Copy Final URL</button>
+        <button id="openCertBtn">Open Certificate File</button>
+        <button id="openDashBtn">Open Dashboard in Browser</button>
+        <button class="primary" id="finishBtn">Save & Finish</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (async function () {
+      const state = await window.DesktopApi.getState();
+      const cfg = state.config;
+      const server = state.server || {};
+      const configPath = state.configPath || '';
+      const $ = (id) => document.getElementById(id);
+
+      const fields = {
+        pcEndpoint: $('pcEndpoint'),
+        pcPoll: $('pcPoll'),
+        btcSymbol: $('btcSymbol'),
+        weatherName: $('weatherName'),
+        weatherLat: $('weatherLat'),
+        weatherLon: $('weatherLon'),
+        httpPort: $('httpPort'),
+        httpsPort: $('httpsPort'),
+        preferHttps: $('preferHttps'),
+        runtimeMode: $('runtimeMode')
+      };
+
+      const defaultEndpointPattern = /^http:\/\/(127\.0\.0\.1|localhost):8085\/data\.json$/i;
+      const currentPcEndpoint = (cfg.pc.endpoint || '').trim();
+      const detectedPcEndpoint = server.primaryIp ? `http://${server.primaryIp}:8085/data.json` : '';
+      fields.pcEndpoint.placeholder = detectedPcEndpoint || 'http://<detected-ip>:8085/data.json';
+      fields.pcEndpoint.value = (!currentPcEndpoint || defaultEndpointPattern.test(currentPcEndpoint))
+        ? (detectedPcEndpoint || currentPcEndpoint)
+        : currentPcEndpoint;
+      fields.pcPoll.value = cfg.pc.pollMs || 2000;
+      fields.btcSymbol.value = cfg.btc.defaultSymbol || 'BTCUSDT';
+      fields.weatherName.value = cfg.weather.name || '';
+      fields.weatherLat.value = cfg.weather.lat;
+      fields.weatherLon.value = cfg.weather.lon;
+      fields.httpPort.value = cfg.network.httpPort || 8888;
+      fields.httpsPort.value = cfg.network.httpsPort || 8443;
+      fields.preferHttps.value = String(cfg.network.preferHttps !== false);
+      fields.runtimeMode.value = cfg.runtimeMode || 'app_open';
+
+      const endpointStatus = $('endpointStatus');
+      const status = $('status');
+      const urls = $('urls');
+
+      function currentFinalUrl() {
+        return fields.preferHttps.value === 'true' ? server.httpsUrl : server.httpUrl;
+      }
+
+      function renderUrls() {
+        const finalUrl = currentFinalUrl() || '-';
+        urls.textContent = `Detected IP: ${server.primaryIp || '-'} | HTTP: ${server.httpUrl || '-'} | HTTPS: ${server.httpsUrl || '-'} | Final: ${finalUrl}`;
+      }
+      renderUrls();
+      const certInstallUrl = $('certInstallUrl');
+      if (certInstallUrl) {
+        certInstallUrl.textContent = server.httpUrl
+          ? `${server.httpUrl}/dashboard-cert.crt`
+          : 'http://<detected-ip>:8888/dashboard-cert.crt';
+      }
+      const finalSecureUrl = $('finalSecureUrl');
+      if (finalSecureUrl) {
+        finalSecureUrl.textContent = server.httpsUrl || 'https://<detected-ip>:8443';
+      }
+      fields.preferHttps.addEventListener('change', renderUrls);
+
+      $('testEndpointBtn').addEventListener('click', async () => {
+        endpointStatus.className = 'status muted';
+        endpointStatus.textContent = 'Testing endpoint...';
+        const result = await window.DesktopApi.testEndpoint(fields.pcEndpoint.value.trim());
+        if (result.ok) {
+          endpointStatus.className = 'status ok';
+          const sensors = (result.sensors || []).slice(0, 6).join(' | ');
+          endpointStatus.textContent = result.message + (sensors ? ` Sensors: ${sensors}` : '');
+        } else {
+          endpointStatus.className = 'status err';
+          endpointStatus.textContent = result.message || 'Endpoint test failed.';
+        }
+      });
+
+      $('copyUrlBtn').addEventListener('click', async () => {
+        await window.DesktopApi.copyText(currentFinalUrl() || '');
+        status.className = 'status ok';
+        status.textContent = 'Final URL copied.';
+      });
+
+      $('openCertBtn').addEventListener('click', async () => {
+        if (!server.certPath) {
+          status.className = 'status err';
+          status.textContent = 'Certificate file not available.';
+          return;
+        }
+        await window.DesktopApi.openFileInFolder(server.certPath);
+        status.className = 'status ok';
+        status.textContent = 'Certificate location opened. Install it on each client device.';
+      });
+
+      $('openDashBtn').addEventListener('click', async () => {
+        await window.DesktopApi.openDashboard();
+      });
+
+      $('finishBtn').addEventListener('click', async () => {
+        const payload = {
+          wizardCompleted: true,
+          runtimeMode: fields.runtimeMode.value,
+          pc: {
+            endpoint: fields.pcEndpoint.value.trim(),
+            pollMs: Number(fields.pcPoll.value || 2000)
+          },
+          btc: {
+            defaultSymbol: (fields.btcSymbol.value || 'BTCUSDT').trim().toUpperCase()
+          },
+          weather: {
+            name: fields.weatherName.value.trim(),
+            lat: Number(fields.weatherLat.value || 0),
+            lon: Number(fields.weatherLon.value || 0)
+          },
+          network: {
+            httpPort: Number(fields.httpPort.value || 8888),
+            httpsPort: Number(fields.httpsPort.value || 8443),
+            preferHttps: fields.preferHttps.value === 'true'
+          }
+        };
+
+        try {
+          await window.DesktopApi.saveWizard(payload);
+        } catch (err) {
+          status.className = 'status err';
+          status.textContent = (err && err.message)
+            ? err.message
+            : `Failed to save wizard settings.${configPath ? ` Config path: ${configPath}` : ''}`;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

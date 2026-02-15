@@ -1,0 +1,17 @@
+node_modules/
+dist/
+releases/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# Local editor/system folders
+.vscode/
+.idea/
+
+# Local cert/key outputs (do not publish private keys)
+*.key

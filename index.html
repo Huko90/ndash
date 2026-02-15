@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>₿ BTC Ultimate Ticker</title>
+<link rel="stylesheet" href="css/shared.css">
+<link rel="stylesheet" href="css/btc.css">
+<link rel="stylesheet" href="css/weather.css">
+<link rel="stylesheet" href="css/pc.css">
+</head>
+<body>
+<canvas id="particles"></canvas>
+<div class="orb orb-1" id="orb1"></div>
+<div class="orb orb-2" id="orb2"></div>
+<div class="alert-flash" id="alertFlash"></div>
+<div class="app" id="app">
+<nav class="nav">
+  <div class="brand"><div class="logo" id="logo">₿</div><div><div class="brand-name" id="brandName"><span>Bitcoin</span> Ticker</div><div class="brand-sub" id="brandSub">Real-Time Market Data</div></div><button class="brand-fs-btn" id="brandFsBtn" title="Toggle Fullscreen">⛶</button><div class="nav-stamps" id="navStamps"><span class="nav-stamp" id="btcStamp">BTC --:--:--</span><span class="nav-stamp" id="weatherStamp">WTH --:--:--</span><span class="nav-stamp" id="pcStamp">PC --:--:--</span></div></div>
+  <div class="nav-r">
+    <div class="mode-toggle" id="modeToggle"></div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="live-badge" id="liveBadge"><div class="live-dot"></div><span id="liveText">Connecting</span></div>
+    <button class="settings-btn" id="settingsBtn" title="Settings">⚙</button>
+  </div>
+</nav>
+<div class="settings-drawer" id="settingsDrawer">
+  <div class="settings-main-panel" id="settingsMainPanel">
+    <div class="settings-head settings-main-head">
+      <span class="settings-main-title">Settings</span>
+      <div class="settings-head-actions">
+        <button class="settings-action alt" id="settingsCryptoBtn" type="button">Crypto</button>
+      </div>
+    </div>
+    <div class="settings-grid">
+      <label>City / Town<input id="setWeatherName" type="text"></label>
+      <label>Update City<button class="settings-action" id="setWeatherResolveBtn" type="button">Update</button></label>
+      <label>Current Location<button class="settings-action" id="setWeatherUseCurrentBtn" type="button">Use Current</button></label>
+      <label>Latitude<input id="setWeatherLat" type="number" step="0.0001"></label>
+      <label>Longitude<input id="setWeatherLon" type="number" step="0.0001"></label>
+      <label>Default Symbol<select id="setBtcSymbol"></select></label>
+      <label>Weather Refresh (s)<input id="setWeatherRefresh" type="number" min="30"></label>
+      <label>PC Poll (ms)<input id="setPcPoll" type="number" min="500"></label>
+      <label>Alert Sound<input id="setAlertAudioEnabled" type="checkbox"></label>
+      <label>Alert Volume<input id="setAlertAudioVolume" type="range" min="0" max="1" step="0.01"></label>
+      <label>BTC Image Opacity<input id="setBtcDim" type="range" min="0" max="1" step="0.01"></label>
+      <label>Weather Image Opacity<input id="setWeatherDim" type="range" min="0" max="1" step="0.01"></label>
+      <label>PC Overlay Top<input id="setPcTopDim" type="range" min="0" max="1" step="0.01"></label>
+      <label>PC Overlay Bottom<input id="setPcBottomDim" type="range" min="0" max="1" step="0.01"></label>
+      <label class="settings-span-2">Final Access URL
+        <div class="settings-inline-row">
+          <input id="setFinalUrl" type="text" readonly>
+          <button class="settings-action" id="setFinalUrlCopyBtn" type="button">Copy</button>
+        </div>
+      </label>
+      <label class="settings-span-2">Server Runtime
+        <select id="setRuntimeMode">
+          <option value="app_open">Run while app is open</option>
+          <option value="background">Run in background (tray)</option>
+        </select>
+      </label>
+    </div>
+    <div class="settings-info" id="settingsInfo"></div>
+    <div class="settings-health" id="settingsHealth"></div>
+    <div class="settings-matches" id="settingsMatches"></div>
+    <div class="settings-actions">
+      <button class="settings-action alt" id="settingsWizardBtn" style="display:none">Re-run Setup Wizard</button>
+      <button class="settings-action" id="settingsApplyBtn">Apply</button>
+      <button class="settings-action" id="settingsSaveBtn">Save + Reload</button>
+      <button class="settings-action alt" id="settingsResetBtn">Reset</button>
+    </div>
+  </div>
+
+  <div class="settings-crypto-panel" id="settingsCryptoPanel">
+    <div class="settings-head">
+      <span>Crypto Heatmap</span>
+      <button class="settings-action alt" id="settingsCryptoBackBtn" type="button">Back</button>
+    </div>
+    <div class="settings-crypto-note">Set symbols for slots 1-10. Search by ticker or full pair (example: ETH or ETHUSDT).</div>
+    <div class="settings-crypto-grid" id="settingsCryptoGrid"></div>
+    <datalist id="cryptoSymbolOptions"></datalist>
+    <div class="settings-actions">
+      <button class="settings-action alt" id="settingsCryptoCancelBtn" type="button">Cancel</button>
+      <button class="settings-action" id="settingsCryptoApplyBtn" type="button">Apply</button>
+    </div>
+  </div>
+</div>
+<!-- BTC DASHBOARD -->
+<div class="main" id="btcDash">
+  <div class="price-section">
+    <div class="pair-tag" id="pairTag"><span class="dot"></span>BTC / USDT · Binance</div>
+    <div class="price-display">
+      <span class="dollar">$</span>
+      <div class="digits-wrap" id="digitsWrap"></div>
+      <span class="price-dec" id="pDec">.--</span>
+    </div>
+    <div class="price-flash" id="priceFlash"></div>
+    <div class="change-row">
+      <div class="change-pill pos" id="changePill"><span id="changeIcon">▲</span><span id="changePct">0.00%</span></div>
+      <span class="change-abs" id="changeAbs">$0.00</span>
+    </div>
+    <div class="alert-panel" id="alertPanel">
+      <div class="alert-controls">
+        <input class="alert-input" id="alertHighInput" type="number" step="0.01" placeholder="High alert">
+        <input class="alert-input" id="alertLowInput" type="number" step="0.01" placeholder="Low alert">
+        <button class="alert-btn" id="setAlertBtn">Set</button>
+        <button class="alert-btn alt" id="clearAlertBtn">Clear</button>
+        <button class="alert-btn alt" id="notifyPermBtn">Notify</button>
+      </div>
+      <div class="alert-history" id="alertHistory"></div>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="s-label">24h High</div><div class="s-value" id="sHigh">--</div><div class="s-sub" id="sHighD"></div></div>
+    <div class="stat-card"><div class="s-label">24h Low</div><div class="s-value" id="sLow">--</div><div class="s-sub" id="sLowD"></div></div>
+    <div class="stat-card"><div class="s-label">Trades</div><div class="s-value" id="sTrades">--</div><div class="s-sub" id="sTps"></div></div>
+    <div class="stat-card"><div class="s-label">Spread</div><div class="s-value" id="sSpread">--</div><div class="s-sub">bid/ask</div></div>
+    <div class="stat-card"><div class="s-label">Dominance</div><div class="s-value" id="sDom">--</div><div class="s-sub">BTC.D</div></div>
+  </div>
+  <div class="perf-row">
+    <div class="perf-item"><span class="perf-label">7D</span><span class="perf-val" id="perf7d">--</span></div>
+    <div class="perf-item"><span class="perf-label">30D</span><span class="perf-val" id="perf30d">--</span></div>
+    <div class="perf-item"><span class="perf-label">YTD</span><span class="perf-val" id="perfYtd">--</span></div>
+  </div>
+  <div class="pressure-row">
+    <span class="pressure-label">Buy / Sell</span>
+    <div class="pressure-track"><div class="pressure-fill" id="pressureFill"></div></div>
+    <div class="pressure-vals"><span class="p-buy" id="pBuy">50%</span><span class="p-sell" id="pSell">50%</span></div>
+  </div>
+  <div class="chart-section">
+    <div class="chart-header">
+      <div class="chart-controls">
+        <div class="chart-type-toggle">
+          <div class="chart-type-btn active" data-type="candle">Candle</div>
+          <div class="chart-type-btn" data-type="line">Line</div>
+        </div>
+        <div class="chart-tabs">
+          <div class="chart-tab active" data-tf="1m">1m</div>
+          <div class="chart-tab" data-tf="5m">5m</div>
+          <div class="chart-tab" data-tf="15m">15m</div>
+          <div class="chart-tab" data-tf="1h">1h</div>
+          <div class="chart-tab" data-tf="4h">4h</div>
+          <div class="chart-tab" data-tf="1d">1D</div>
+        </div>
+        <div class="indicator-toggle">
+          <div class="ind-btn" data-ind="sma">SMA</div>
+          <div class="ind-btn" data-ind="ema">EMA</div>
+          <div class="ind-btn" data-ind="boll">BOLL</div>
+          <div class="ind-btn" data-ind="rsi">RSI</div>
+        </div>
+      </div>
+      <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">⛶</button>
+    </div>
+    <div class="chart-wrap" id="chartWrap"><canvas id="chart"></canvas><div class="chart-overlay" id="overlay"><div class="crosshair-v" id="crossV"></div><div class="crosshair-h" id="crossH"></div><div class="chart-tooltip" id="tip"></div></div></div>
+  </div>
+  <div class="info-row">
+    <div class="info-box"><span class="info-label">Volume</span><div class="vol-track"><div class="vol-fill" id="volFill"></div></div><span class="info-val" id="volVal">--</span></div>
+    <div class="info-box"><span class="info-label">Fear &amp; Greed</span><div class="fgi-gauge"><div class="fgi-needle" id="fgiNeedle"></div></div><span class="fgi-text" id="fgiText">--</span></div>
+  </div>
+  <div class="heatmap" id="heatmap"></div>
+</div>
+<!-- WEATHER DASHBOARD -->
+<div class="weather-dash" id="weatherDash">
+  <div class="weather-current">
+    <div class="weather-location" id="weatherLocation"><span class="dot"></span>Loading location...</div>
+    <div class="weather-temp-display">
+      <span class="weather-temp-num" id="weatherTemp">--</span>
+      <span class="weather-temp-unit">°C</span>
+    </div>
+    <div class="weather-desc-row">
+      <span class="weather-icon" id="weatherIcon">☀️</span>
+      <span class="weather-desc" id="weatherDesc">Loading...</span>
+    </div>
+    <div class="weather-feels" id="weatherFeels">Feels like --°C</div>
+  </div>
+  <div class="weather-stats" id="weatherStats">
+    <div class="weather-stat"><div class="ws-icon">💧</div><div class="ws-label">Humidity</div><div class="ws-value" id="wsHumidity">--%</div></div>
+    <div class="weather-stat"><div class="ws-icon">💨</div><div class="ws-label">Wind</div><div class="ws-value" id="wsWind">-- km/h</div><div class="ws-sub" id="wsWindDir">--</div></div>
+    <div class="weather-stat"><div class="ws-icon">🌡️</div><div class="ws-label">Pressure</div><div class="ws-value" id="wsPressure">-- hPa</div></div>
+    <div class="weather-stat"><div class="ws-icon">👁️</div><div class="ws-label">Visibility</div><div class="ws-value" id="wsVisibility">-- km</div></div>
+  </div>
+  <div class="sun-row">
+    <div class="sun-item"><span class="sun-label">🌅 Sunrise</span><span class="sun-val" id="wsSunrise">--:--</span></div>
+    <div class="sun-item"><span class="sun-label">🌇 Sunset</span><span class="sun-val" id="wsSunset">--:--</span></div>
+    <div class="sun-item"><span class="sun-label">☀️ UV Index</span><span class="sun-val" id="wsUV">--</span></div>
+  </div>
+  <div class="today-row">
+    <span class="today-label">Today</span>
+    <div class="today-track"><div class="today-marker" id="todayMarker"></div></div>
+    <div class="today-vals"><span class="today-low" id="todayLow">--°</span><span class="today-high" id="todayHigh">--°</span></div>
+  </div>
+  <div class="hourly-detail-row">
+    <div class="hourly-section">
+      <div class="hourly-forecast-part">
+        <div class="hourly-header"><span class="hourly-title">Hourly Forecast</span></div>
+        <div class="hourly-wrap"><div class="hourly-scroll" id="hourlyScroll"></div></div>
+      </div>
+      <div class="forecast-section-left">
+        <div class="forecast-header"><span class="forecast-title">7-Day Forecast</span></div>
+        <div class="forecast-grid" id="forecastGrid"></div>
+      </div>
+    </div>
+    <div class="day-detail">
+      <div class="day-detail-header"><span class="day-detail-title" id="dayDetailTitle">Today's Details</span></div>
+      <div class="day-detail-wrap" id="dayDetailWrap">
+        <div class="day-detail-top">
+          <span class="day-detail-icon" id="dayDetailIcon">☀️</span>
+          <div class="day-detail-main">
+            <div class="day-detail-day" id="dayDetailDay">Today</div>
+            <div class="day-detail-desc" id="dayDetailDesc">Clear sky</div>
+            <div class="day-detail-temps">
+              <span class="high" id="dayDetailHigh">↑ 12°</span>
+              <span class="low" id="dayDetailLow">↓ 5°</span>
+            </div>
+          </div>
+        </div>
+        <div class="day-detail-summary" id="dayDetailSummary">Expect clear skies throughout the day with comfortable temperatures.</div>
+        <div class="day-detail-stats">
+          <div class="day-detail-stat"><span class="day-detail-stat-label">☀️ Sunrise</span><span class="day-detail-stat-val" id="dayDetailSunrise">--:--</span></div>
+          <div class="day-detail-stat"><span class="day-detail-stat-label">🌙 Sunset</span><span class="day-detail-stat-val" id="dayDetailSunset">--:--</span></div>
+          <div class="day-detail-stat"><span class="day-detail-stat-label">🌡️ UV Index</span><span class="day-detail-stat-val" id="dayDetailUV">--</span></div>
+          <div class="day-detail-stat"><span class="day-detail-stat-label">💧 Rain</span><span class="day-detail-stat-val" id="dayDetailRain">--%</span></div>
+          <div class="day-detail-stat"><span class="day-detail-stat-label">💨 Wind</span><span class="day-detail-stat-val" id="dayDetailWind">-- km/h</span></div>
+          <div class="day-detail-stat"><span class="day-detail-stat-label">💧 Humidity</span><span class="day-detail-stat-val" id="dayDetailHumidity">--%</span></div>
+          <div class="day-detail-stat"><span class="day-detail-stat-label">🌡️ Pressure</span><span class="day-detail-stat-val" id="dayDetailPressure">-- hPa</span></div>
+          <div class="day-detail-stat"><span class="day-detail-stat-label">👁️ Visibility</span><span class="day-detail-stat-val" id="dayDetailVisibility">--</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- PC DASHBOARD -->
+<div class="pc-dash" id="pcDash">
+  <div class="pc-status offline" id="pcStatus">PC OFFLINE</div>
+  <div class="pc-temps">
+    <div class="pc-temp-card">
+      <div class="pc-vert-scale" id="pcCpuScale">
+        <div class="pc-vert-marker left" id="pcCpuMarker" data-temp="--°"></div>
+      </div>
+      <div class="pc-temp-content">
+        <div class="pc-temp-label">CPU Temp</div>
+        <div class="pc-temp-val cpu" id="pcCpuTemp">--°</div>
+      </div>
+    </div>
+    <div class="pc-temp-card">
+      <div class="pc-temp-content">
+        <div class="pc-temp-label">GPU Temp</div>
+        <div class="pc-temp-val gpu" id="pcGpuTemp">--°</div>
+        <div class="pc-temp-hotspot" id="pcGpuHotspot"></div>
+      </div>
+      <div class="pc-vert-scale" id="pcGpuScale">
+        <div class="pc-vert-marker right" id="pcGpuMarker" data-temp="--°"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pc-loads" id="pcLoads">CPU --% · GPU --%</div>
+  <div class="pc-mode-pill idle" id="pcMode">IDLE</div>
+</div>
+<div class="footer"><div class="footer-pills"><span class="f-pill">WebSocket</span><span class="f-pill">Binance</span><span class="f-pill">Sub-Second</span></div><div class="tps"><span id="msgRate">0</span> msg/s</div></div>
+</div>
+<script src="js/config-base.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/btc.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/pc.js"></script>
+<script>
+(window.BTCT_CONFIG_READY || Promise.resolve())
+  .catch(function(){})
+  .then(function(){ App.start('btc'); });
+</script>
+</body>
+</html>

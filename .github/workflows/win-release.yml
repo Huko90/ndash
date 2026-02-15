@@ -1,0 +1,51 @@
+name: Windows Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check
+        run: npm run lint:syntax
+
+      - name: Build Windows installer
+        run: npm run dist:win
+
+      - name: Collect release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          shopt -s nullglob
+          for f in dist/*.exe dist/*.yml dist/*.blockmap; do
+            cp "$f" release-artifacts/
+          done
+          ls -la release-artifacts
+
+      - name: Create GitHub release (tag only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release-artifacts/*
