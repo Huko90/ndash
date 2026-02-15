@@ -1,6 +1,6 @@
 {
   "name": "btctracker-desktop",
-  "version": "1.0.3",
+  "version": "1.0.2",
   "description": "BTC/Weather/PC dashboard desktop package with setup wizard",
   "author": "Niko",
   "main": "desktop/main.js",
@@ -45,7 +45,6 @@
       "output": "dist"
     },
     "win": {
-      "verifyUpdateCodeSignature": true,
       "target": [
         "nsis"
       ],

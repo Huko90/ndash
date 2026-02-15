@@ -20,7 +20,6 @@ fi
 
 git add -A
 git commit -m "Release ${ver}" || true
-git push
 
 if git rev-parse "$ver" >/dev/null 2>&1; then
   echo "Tag ${ver} already exists locally; skipping tag create."
@@ -28,4 +27,4 @@ else
   git tag "$ver"
 fi
 
-git push origin "$ver"
+git push origin HEAD "$ver"
