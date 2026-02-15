@@ -132,4 +132,11 @@
 .app.fullscreen .chart-wrap.with-rsi{flex:2.5}
 /* Responsive */
 @media(max-width:500px){.stats-grid{grid-template-columns:repeat(3,1fr)}.info-row{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .main{overflow-y:auto;overflow-x:hidden}
+  .chart-section{min-height:260px;flex:1 0 260px}
+  .stats-grid{grid-template-columns:repeat(3,1fr)}
+  .perf-row,.pressure-row,.heatmap{display:none}
+  .alert-panel{display:none}
+}
 @media(max-height:400px){.stats-grid{grid-template-columns:repeat(5,1fr)}}

@@ -129,6 +129,10 @@ canvas#particles{position:fixed;inset:0;z-index:0}
 .app.fullscreen{padding:clamp(8px,1.5vh,20px) clamp(15px,2vw,40px)}
 /* Responsive */
 @media(max-width:500px){.nav-r .clock{display:none}}
+@media(max-width:560px){
+  html,body{overflow:auto}
+  .app{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden}
+}
 /* Anti screen burn-in drift */
 @keyframes antiburn{
   0%{transform:translate(0,0)}
