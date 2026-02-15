@@ -23,8 +23,23 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (with retry)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "npm ci attempt ${attempt}/3"
+            if npm ci; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "npm ci failed (likely transient registry/CDN issue). Retrying in 20s..."
+              npm cache verify || true
+              sleep 20
+            fi
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Validate tag matches package version
         if: startsWith(github.ref, 'refs/tags/')
