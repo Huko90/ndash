@@ -32,39 +32,74 @@
         <button class="settings-action alt" id="settingsCryptoBtn" type="button">Crypto</button>
       </div>
     </div>
-    <div class="settings-grid">
-      <label>City / Town<input id="setWeatherName" type="text"></label>
-      <label>Update City<button class="settings-action" id="setWeatherResolveBtn" type="button">Update</button></label>
-      <label>Current Location<button class="settings-action" id="setWeatherUseCurrentBtn" type="button">Use Current</button></label>
-      <label>Latitude<input id="setWeatherLat" type="number" step="0.0001"></label>
-      <label>Longitude<input id="setWeatherLon" type="number" step="0.0001"></label>
-      <label>Default Symbol<select id="setBtcSymbol"></select></label>
-      <label>Weather Refresh (s)<input id="setWeatherRefresh" type="number" min="30"></label>
-      <label>PC Poll (ms)<input id="setPcPoll" type="number" min="500"></label>
-      <label>Alert Sound<input id="setAlertAudioEnabled" type="checkbox"></label>
-      <label>Alert Volume<input id="setAlertAudioVolume" type="range" min="0" max="1" step="0.01"></label>
-      <label>BTC Image Opacity<input id="setBtcDim" type="range" min="0" max="1" step="0.01"></label>
-      <label>Weather Image Opacity<input id="setWeatherDim" type="range" min="0" max="1" step="0.01"></label>
-      <label>PC Overlay Top<input id="setPcTopDim" type="range" min="0" max="1" step="0.01"></label>
-      <label>PC Overlay Bottom<input id="setPcBottomDim" type="range" min="0" max="1" step="0.01"></label>
-      <label class="settings-span-2">Final Access URL
-        <div class="settings-inline-row">
-          <input id="setFinalUrl" type="text" readonly>
-          <button class="settings-action" id="setFinalUrlCopyBtn" type="button">Copy</button>
+    <div class="settings-tabs" id="settingsTabs">
+      <button class="settings-tab active" type="button" data-settings-tab="general">General</button>
+      <button class="settings-tab" type="button" data-settings-tab="datasources">Data Sources</button>
+      <button class="settings-tab" type="button" data-settings-tab="alerts">Alerts</button>
+      <button class="settings-tab" type="button" data-settings-tab="display">Display</button>
+      <button class="settings-tab" type="button" data-settings-tab="system">System</button>
+    </div>
+
+    <div class="settings-tab-panel active" data-tab-panel="general">
+      <div class="settings-grid">
+        <label>Default Symbol<select id="setBtcSymbol"></select></label>
+      </div>
+    </div>
+
+    <div class="settings-tab-panel" data-tab-panel="datasources">
+      <div class="settings-grid">
+        <label>City / Town<input id="setWeatherName" type="text"></label>
+        <label>Update City<button class="settings-action" id="setWeatherResolveBtn" type="button">Update</button></label>
+        <label>Current Location<button class="settings-action" id="setWeatherUseCurrentBtn" type="button">Use Current</button></label>
+        <label>Latitude<input id="setWeatherLat" type="number" step="0.0001"></label>
+        <label>Longitude<input id="setWeatherLon" type="number" step="0.0001"></label>
+        <label>Weather Refresh (s)<input id="setWeatherRefresh" type="number" min="30"></label>
+        <label>PC Poll (ms)<input id="setPcPoll" type="number" min="500"></label>
+      </div>
+      <div class="settings-matches" id="settingsMatches"></div>
+    </div>
+
+    <div class="settings-tab-panel" data-tab-panel="alerts">
+      <div class="settings-grid">
+        <label>Alert Sound<input id="setAlertAudioEnabled" type="checkbox"></label>
+        <label>Alert Volume<input id="setAlertAudioVolume" type="range" min="0" max="1" step="0.01"></label>
+      </div>
+    </div>
+
+    <div class="settings-tab-panel" data-tab-panel="display">
+      <div class="settings-grid">
+        <label>BTC Image Opacity<input id="setBtcDim" type="range" min="0" max="1" step="0.01"></label>
+        <label>Weather Image Opacity<input id="setWeatherDim" type="range" min="0" max="1" step="0.01"></label>
+        <label>PC Overlay Top<input id="setPcTopDim" type="range" min="0" max="1" step="0.01"></label>
+        <label>PC Overlay Bottom<input id="setPcBottomDim" type="range" min="0" max="1" step="0.01"></label>
+      </div>
+    </div>
+
+    <div class="settings-tab-panel" data-tab-panel="system">
+      <div class="settings-grid">
+        <label class="settings-span-2">Final Access URL
+          <div class="settings-inline-row">
+            <input id="setFinalUrl" type="text" readonly>
+            <button class="settings-action" id="setFinalUrlCopyBtn" type="button">Copy</button>
+          </div>
+        </label>
+        <label class="settings-span-2">Server Runtime
+          <select id="setRuntimeMode">
+            <option value="app_open">Run while app is open</option>
+            <option value="background">Run in background (tray)</option>
+          </select>
+        </label>
+      </div>
+      <details class="settings-advanced">
+        <summary>Advanced Controls</summary>
+        <div class="settings-actions settings-actions-inline" id="settingsAdvancedActions">
+          <button class="settings-action alt" id="settingsWizardBtn" style="display:none" type="button">Re-run Setup Wizard</button>
         </div>
-      </label>
-      <label class="settings-span-2">Server Runtime
-        <select id="setRuntimeMode">
-          <option value="app_open">Run while app is open</option>
-          <option value="background">Run in background (tray)</option>
-        </select>
-      </label>
+      </details>
+      <div class="settings-health" id="settingsHealth"></div>
     </div>
     <div class="settings-info" id="settingsInfo"></div>
-    <div class="settings-health" id="settingsHealth"></div>
-    <div class="settings-matches" id="settingsMatches"></div>
-    <div class="settings-actions">
-      <button class="settings-action alt" id="settingsWizardBtn" style="display:none">Re-run Setup Wizard</button>
+    <div class="settings-actions" id="settingsPrimaryActions">
       <button class="settings-action" id="settingsApplyBtn">Apply</button>
       <button class="settings-action" id="settingsSaveBtn">Save + Reload</button>
       <button class="settings-action alt" id="settingsResetBtn">Reset</button>

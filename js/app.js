@@ -337,9 +337,25 @@ var App = (function() {
         var preferHttps = state.config.network.preferHttps !== false;
         return preferHttps ? (state.server.httpsUrl || '') : (state.server.httpUrl || '');
     }
+    function setSettingsTab(tabName) {
+        var tab = String(tabName || 'general');
+        var buttons = document.querySelectorAll('[data-settings-tab]');
+        var panels = document.querySelectorAll('[data-tab-panel]');
+        var hasMatch = false;
+        buttons.forEach(function(btn) {
+            var isActive = btn.getAttribute('data-settings-tab') === tab;
+            if (isActive) hasMatch = true;
+            btn.classList.toggle('active', isActive);
+        });
+        if (!hasMatch) tab = 'general';
+        panels.forEach(function(panel) {
+            panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === tab);
+        });
+    }
     function openSettings() {
         if (!el.settingsDrawer) return;
         el.settingsDrawer.classList.remove('crypto-open');
+        setSettingsTab('general');
         var cfg = window.BTCT_CONFIG || {};
         var btc = cfg.btc || {};
         var alerts = btc.alerts || {};
@@ -397,6 +413,16 @@ var App = (function() {
         function setCryptoMenuOpen(open) {
             if (!el.settingsDrawer) return;
             el.settingsDrawer.classList.toggle('crypto-open', !!open);
+        }
+        function bindSettingsTabs() {
+            var buttons = document.querySelectorAll('[data-settings-tab]');
+            buttons.forEach(function(btn) {
+                if (btn.dataset.tabBound === '1') return;
+                btn.addEventListener('click', function() {
+                    setSettingsTab(btn.getAttribute('data-settings-tab'));
+                });
+                btn.dataset.tabBound = '1';
+            });
         }
         function normalizeHeatmapSymbol(raw) {
             var s = String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -696,7 +722,7 @@ var App = (function() {
             input.click();
         }
         function ensureOpsButtons() {
-            var row = document.querySelector('#settingsMainPanel .settings-actions');
+            var row = document.getElementById('settingsAdvancedActions');
             if (!row || row.querySelector('.settings-action-ops')) return;
             var mk = function(text, onClick) {
                 var btn = document.createElement('button');
@@ -796,6 +822,7 @@ var App = (function() {
         function resolveCity() {
             var q = (el.setWeatherName && el.setWeatherName.value || '').trim();
             if (!q) { setSettingsInfo('Enter a city/town first.', 'err'); return; }
+            setSettingsTab('datasources');
             var weatherCfg = (window.BTCT_CONFIG && window.BTCT_CONFIG.weather) || {};
             var base = weatherCfg.searchGeocodeBase || 'https://nominatim.openstreetmap.org/search';
             var url = base + '?q=' + encodeURIComponent(q) + '&format=json&addressdetails=1&limit=5';
@@ -824,6 +851,7 @@ var App = (function() {
                 setSettingsInfo('Geolocation is not supported here.', 'err');
                 return;
             }
+            setSettingsTab('datasources');
             setSettingsInfo('Reading current location...', null);
             clearMatches();
             navigator.geolocation.getCurrentPosition(function(pos) {
@@ -928,6 +956,7 @@ var App = (function() {
         }
         if (el.setWeatherResolveBtn) el.setWeatherResolveBtn.addEventListener('click', resolveCity);
         if (el.setWeatherUseCurrentBtn) el.setWeatherUseCurrentBtn.addEventListener('click', useCurrentLocation);
+        bindSettingsTabs();
         loadDesktopAccessUi();
         loadHealthUi();
         enhanceNumberInputs();
