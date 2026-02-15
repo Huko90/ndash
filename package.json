@@ -54,7 +54,7 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "BTC-Tracker-Desktop-Setup-${version}.${ext}"
     },
     "linux": {
       "icon": "build/icon.png"
