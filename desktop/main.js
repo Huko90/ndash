@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const { app, BrowserWindow, ipcMain, shell, clipboard, Tray, Menu, nativeImage, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { ConfigStore, deepMerge } = require('./config-store');
@@ -186,10 +187,33 @@ function setUpdateStatus(text) {
   if (tray) updateTrayMenu();
 }
 
+function hasPackagedUpdateConfig() {
+  if (!app.isPackaged) return false;
+  try {
+    return fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'));
+  } catch (_) {
+    return false;
+  }
+}
+
+function githubFeedFromEnv() {
+  const owner = String(process.env.BTCT_GH_OWNER || '').trim();
+  const repo = String(process.env.BTCT_GH_REPO || '').trim();
+  if (!owner || !repo) return null;
+
+  const host = String(process.env.BTCT_GH_HOST || '').trim();
+  const isPrivate = String(process.env.BTCT_GH_PRIVATE || '').trim() === '1';
+  const cfg = { provider: 'github', owner, repo, private: isPrivate };
+  if (host) cfg.host = host;
+  return cfg;
+}
+
 function isAutoUpdateEnabled() {
   if (!app.isPackaged) return false;
   if (process.env.BTCT_DISABLE_AUTO_UPDATE === '1') return false;
-  return !!process.env.BTCT_UPDATE_URL;
+  if (String(process.env.BTCT_UPDATE_URL || '').trim()) return true;
+  if (githubFeedFromEnv()) return true;
+  return hasPackagedUpdateConfig();
 }
 
 async function runUpdateCheck(manual) {
@@ -199,7 +223,7 @@ async function runUpdateCheck(manual) {
         type: 'info',
         title: 'Updates',
         message: 'Auto-update is not configured for this build.',
-        detail: 'Set BTCT_UPDATE_URL on the machine to enable update checks.'
+        detail: 'Set BTCT_UPDATE_URL or BTCT_GH_OWNER/BTCT_GH_REPO, or ship with app-update.yml metadata.'
       });
     }
     return;
@@ -228,11 +252,23 @@ function setupAutoUpdates() {
   }
 
   const updateBaseUrl = String(process.env.BTCT_UPDATE_URL || '').trim();
+  const githubFeed = githubFeedFromEnv();
   const channel = String(process.env.BTCT_UPDATE_CHANNEL || 'latest').trim();
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowDowngrade = false;
-  autoUpdater.setFeedURL({ provider: 'generic', url: updateBaseUrl, channel });
+  if (updateBaseUrl) {
+    autoUpdater.setFeedURL({ provider: 'generic', url: updateBaseUrl, channel });
+    setUpdateStatus('Updates: configured (generic)');
+  } else if (githubFeed) {
+    autoUpdater.setFeedURL(githubFeed);
+    setUpdateStatus('Updates: configured (github)');
+  } else if (hasPackagedUpdateConfig()) {
+    setUpdateStatus('Updates: configured (packaged)');
+  } else {
+    setUpdateStatus('Updates: not configured');
+    return;
+  }
 
   autoUpdater.on('checking-for-update', () => {
     setUpdateStatus('Updates: checking...');

@@ -47,7 +47,10 @@ npm start
 - Signed/published release package:
   - `npm run dist:win:publish`
 
-Auto-update in packaged app is enabled when `BTCT_UPDATE_URL` is set in runtime environment.
+Auto-update in packaged app is enabled when any one of these is configured:
+- `BTCT_UPDATE_URL` (generic host),
+- `BTCT_GH_OWNER` + `BTCT_GH_REPO` (GitHub Releases), or
+- bundled `app-update.yml` metadata in the packaged app.
 
 ## Important notes
 

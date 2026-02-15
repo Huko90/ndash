@@ -1,6 +1,6 @@
 {
   "name": "btctracker-desktop",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "BTC/Weather/PC dashboard desktop package with setup wizard",
   "author": "Niko",
   "main": "desktop/main.js",
@@ -23,6 +23,13 @@
   "build": {
     "appId": "com.btctracker.desktop",
     "productName": "BTC Tracker Desktop",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Huko90",
+        "repo": "ndash"
+      }
+    ],
     "asar": true,
     "files": [
       "desktop/**/*",

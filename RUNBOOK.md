@@ -101,13 +101,21 @@ If signing vars are missing, you can still build locally, but SmartScreen trust 
 ### Auto-update runtime env vars
 
 Set on client machines (or app launch environment):
-- `BTCT_UPDATE_URL`: base URL hosting update artifacts (required)
-- `BTCT_UPDATE_CHANNEL`: optional channel name (default `latest`)
+- Generic host mode:
+  - `BTCT_UPDATE_URL`: base URL hosting update artifacts
+  - `BTCT_UPDATE_CHANNEL`: optional channel name (default `latest`)
+- GitHub Releases mode:
+  - `BTCT_GH_OWNER`: GitHub org/user
+  - `BTCT_GH_REPO`: GitHub repository name
+  - `BTCT_GH_PRIVATE=1`: optional, for private repos
+  - `BTCT_GH_HOST`: optional GitHub Enterprise host
+- Packaged metadata mode:
+  - include `app-update.yml` in installer resources (no runtime feed env required)
 - `BTCT_DISABLE_AUTO_UPDATE=1`: force-disable updater
 
 ### Update host contents
 
-Host files produced in `dist/` from published build:
+Host files produced in `dist/` from release build:
 - installer `.exe`
 - blockmap files
 - `latest.yml` (required by electron-updater generic provider)
