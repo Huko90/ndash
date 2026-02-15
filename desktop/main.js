@@ -349,6 +349,7 @@ function setupAutoUpdates() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowDowngrade = false;
+  autoUpdater.disableDifferentialDownload = true;
   autoUpdater.allowPrerelease = prereleaseEnabled;
   if (updateBaseUrl) {
     autoUpdater.setFeedURL({ provider: 'generic', url: updateBaseUrl, channel });
