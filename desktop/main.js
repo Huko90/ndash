@@ -121,9 +121,16 @@ function tinyIcon() {
   return nativeImage.createFromBitmap(raw, { width: size, height: size, scaleFactor: 1 });
 }
 
+function trayIcon() {
+  const trayPath = path.join(__dirname, 'tray-icon.png');
+  const img = nativeImage.createFromPath(trayPath);
+  if (!img.isEmpty()) return img.resize({ width: 16, height: 16 });
+  return tinyIcon();
+}
+
 function createTray() {
   if (tray) return;
-  tray = new Tray(tinyIcon());
+  tray = new Tray(trayIcon());
   tray.setToolTip('BTC Tracker Desktop');
   tray.on('double-click', () => {
     if (!mainWindow) return;
