@@ -20,6 +20,7 @@ let lastUpdateCheckAt = 0;
 let lastUpdateAvailableVersion = '';
 let manualCheckPending = false;
 let manualErrorShown = false;
+let updateCounters = { checks: 0, ok: 0, errors: 0, downloads: 0, installedPrompts: 0 };
 
 function projectRoot() {
   return path.resolve(__dirname, '..');
@@ -220,12 +221,51 @@ function updateLogPath() {
 }
 
 function logUpdateEvent(event, detail) {
-  const ts = new Date().toISOString();
-  const line = `[${ts}] ${event}${detail ? ` | ${detail}` : ''}\n`;
+  const entry = {
+    ts: new Date().toISOString(),
+    event,
+    detail: detail || '',
+    version: app.getVersion()
+  };
+  const line = `${JSON.stringify(entry)}\n`;
   try {
     fs.mkdirSync(path.dirname(updateLogPath()), { recursive: true });
     fs.appendFileSync(updateLogPath(), line, 'utf8');
   } catch (_) {}
+}
+
+function lastRunVersionPath() {
+  return path.join(app.getPath('userData'), 'last-run-version.txt');
+}
+
+function maybeShowPostUpdateNotes() {
+  const current = app.getVersion();
+  let prev = '';
+  try {
+    prev = fs.existsSync(lastRunVersionPath()) ? fs.readFileSync(lastRunVersionPath(), 'utf8').trim() : '';
+  } catch (_) {}
+  if (prev && prev !== current) {
+    dialog.showMessageBox(mainWindow || null, {
+      type: 'info',
+      title: 'App Updated',
+      message: `BTC Tracker Desktop updated to ${current}.`,
+      detail: `Previous version: ${prev}`
+    }).catch(() => {});
+  }
+  try {
+    fs.mkdirSync(path.dirname(lastRunVersionPath()), { recursive: true });
+    fs.writeFileSync(lastRunVersionPath(), current, 'utf8');
+  } catch (_) {}
+}
+
+function runStartupSelfCheck() {
+  const cfg = configStore.get();
+  const warnings = [];
+  if (!cfg.pc || !/^https?:\/\//i.test(String(cfg.pc.endpoint || ''))) warnings.push('pc_endpoint_not_set');
+  if (!cfg.network || cfg.network.httpPort === cfg.network.httpsPort) warnings.push('invalid_ports');
+  if (warnings.length) {
+    logUpdateEvent('startup-warning', warnings.join(','));
+  }
 }
 
 function hasPackagedUpdateConfig() {
@@ -273,12 +313,14 @@ async function runUpdateCheck(manual) {
     manualCheckPending = !!manual;
     manualErrorShown = false;
     lastUpdateCheckAt = Date.now();
+    updateCounters.checks += 1;
     logUpdateEvent('check-start', manual ? 'manual' : 'auto');
     setUpdateStatus('Updates: checking...');
     await autoUpdater.checkForUpdates();
   } catch (err) {
     const msg = (err && err.message) ? err.message : String(err);
     lastUpdateError = msg;
+    updateCounters.errors += 1;
     logUpdateEvent('check-error', msg);
     setUpdateStatus('Updates: error');
     if (manual) {
@@ -332,6 +374,7 @@ function setupAutoUpdates() {
   autoUpdater.on('update-available', (info) => {
     const nextVersion = info && info.version ? info.version : 'new version';
     lastUpdateAvailableVersion = nextVersion;
+    updateCounters.ok += 1;
     logUpdateEvent('update-available', nextVersion);
     setUpdateStatus(`Updates: downloading ${nextVersion}`);
     if (manualCheckPending) {
@@ -346,6 +389,7 @@ function setupAutoUpdates() {
   });
   autoUpdater.on('update-not-available', () => {
     logUpdateEvent('update-not-available');
+    updateCounters.ok += 1;
     setUpdateStatus('Updates: up to date');
     if (manualCheckPending) {
       dialog.showMessageBox(mainWindow || null, {
@@ -382,6 +426,7 @@ function setupAutoUpdates() {
   autoUpdater.on('update-downloaded', async (info) => {
     const nextVersion = info && info.version ? info.version : 'new version';
     updateReadyInfo = info || { version: nextVersion };
+    updateCounters.downloads += 1;
     logUpdateEvent('update-downloaded', nextVersion);
     setUpdateStatus(`Updates: ready (${nextVersion})`);
     updateTrayMenu();
@@ -395,6 +440,7 @@ function setupAutoUpdates() {
       detail: 'Restart now to apply the update.'
     });
     if (res.response === 0) {
+      updateCounters.installedPrompts += 1;
       isQuitting = true;
       autoUpdater.quitAndInstall();
     }
@@ -503,6 +549,8 @@ app.whenReady().then(async () => {
   await startLocalServer();
   applyRunModeSideEffects();
   createMainWindow();
+  runStartupSelfCheck();
+  maybeShowPostUpdateNotes();
   setupAutoUpdates();
 
   app.on('activate', () => {
@@ -513,6 +561,28 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+});
+
+process.on('uncaughtException', (err) => {
+  const msg = err && err.stack ? err.stack : String(err);
+  logUpdateEvent('uncaught-exception', msg);
+  dialog.showMessageBox(mainWindow || null, {
+    type: 'error',
+    title: 'Unexpected Error',
+    message: 'The app hit an unexpected error.',
+    detail: msg
+  }).catch(() => {});
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason && reason.stack ? reason.stack : String(reason);
+  logUpdateEvent('unhandled-rejection', msg);
+  dialog.showMessageBox(mainWindow || null, {
+    type: 'error',
+    title: 'Unhandled Rejection',
+    message: 'A background task failed.',
+    detail: msg
+  }).catch(() => {});
 });
 
 app.on('window-all-closed', async () => {
@@ -538,7 +608,8 @@ ipcMain.handle('app:get-state', async () => ({
     availableVersion: lastUpdateAvailableVersion,
     lastError: lastUpdateError,
     lastCheckAt: lastUpdateCheckAt,
-    logPath: updateLogPath()
+    logPath: updateLogPath(),
+    counters: updateCounters
   }
 }));
 

@@ -68,6 +68,7 @@ var App = (function() {
         weather: { el: el.weatherStamp, label: 'WTH' },
         pc: { el: el.pcStamp, label: 'PC' }
     };
+    var sectionTouchAt = { btc: 0, weather: 0, pc: 0 };
 
     // === PARTICLES ===
     var pCanvas = document.getElementById('particles'), px = pCanvas.getContext('2d'), pts = [];
@@ -149,8 +150,22 @@ var App = (function() {
     function touchSection(id) {
         var stamp = sectionMap[id];
         if (!stamp || !stamp.el) return;
+        sectionTouchAt[id] = Date.now();
         stamp.el.textContent = stamp.label + ' ' + utcNow().replace(' UTC', '');
     }
+
+    setInterval(function() {
+        if (document.hidden) return;
+        var now = Date.now();
+        ['btc', 'weather', 'pc'].forEach(function(id) {
+            var t = sectionTouchAt[id] || 0;
+            if (!t) return;
+            if (now - t > 3 * 60 * 1000) {
+                var s = sectionMap[id];
+                if (s && s.el) s.el.classList.add('down');
+            }
+        });
+    }, 15000);
 
     // === REGISTER DASHBOARD ===
     function registerDashboard(id, config) {
@@ -633,6 +648,70 @@ var App = (function() {
             el.settingsInfo.classList.remove('ok', 'err');
             if (cls) el.settingsInfo.classList.add(cls);
         }
+        function exportConfigBackup() {
+            var payload = {
+                exportedAt: new Date().toISOString(),
+                settings: settings || {},
+                runtimeOverrides: loadRuntimeOverrides() || {}
+            };
+            var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'btct-config-backup.json';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                URL.revokeObjectURL(a.href);
+                a.remove();
+            }, 100);
+            setSettingsInfo('Backup exported.', 'ok');
+        }
+        function importConfigBackup() {
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json,.json';
+            input.addEventListener('change', function() {
+                var f = input.files && input.files[0];
+                if (!f) return;
+                var reader = new FileReader();
+                reader.onload = function() {
+                    try {
+                        var parsed = JSON.parse(String(reader.result || '{}'));
+                        if (parsed && parsed.settings && typeof parsed.settings === 'object') {
+                            settings = parsed.settings;
+                            saveSettings();
+                        }
+                        if (parsed && parsed.runtimeOverrides && typeof parsed.runtimeOverrides === 'object') {
+                            saveRuntimeOverrides(parsed.runtimeOverrides);
+                            mergeRuntimeConfig(parsed.runtimeOverrides);
+                        }
+                        reloadCurrentDashboard();
+                        setSettingsInfo('Backup imported.', 'ok');
+                    } catch (_err) {
+                        setSettingsInfo('Invalid backup file.', 'err');
+                    }
+                };
+                reader.readAsText(f);
+            });
+            input.click();
+        }
+        function ensureOpsButtons() {
+            var row = document.querySelector('#settingsMainPanel .settings-actions');
+            if (!row || row.querySelector('.settings-action-ops')) return;
+            var mk = function(text, onClick) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'settings-action alt settings-action-ops';
+                btn.textContent = text;
+                btn.addEventListener('click', onClick);
+                row.appendChild(btn);
+            };
+            mk('Export Backup', exportConfigBackup);
+            mk('Import Backup', importConfigBackup);
+            if (window.DesktopApi && typeof window.DesktopApi.openUpdateLog === 'function') {
+                mk('Open Update Log', function() { window.DesktopApi.openUpdateLog(); });
+            }
+        }
         function clearMatches() {
             if (el.settingsMatches) el.settingsMatches.innerHTML = '';
         }
@@ -852,6 +931,7 @@ var App = (function() {
         loadDesktopAccessUi();
         loadHealthUi();
         enhanceNumberInputs();
+        ensureOpsButtons();
         if (el.settingsApplyBtn) el.settingsApplyBtn.addEventListener('click', function() { applyOverrides(false); });
         if (el.settingsResetBtn) el.settingsResetBtn.addEventListener('click', function() {
             try { localStorage.removeItem(runtimeConfigKey); } catch (e) {}

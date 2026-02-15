@@ -11,6 +11,7 @@ var intervals = [];
 var defaultWeather = { name: 'Dundee, UK', lat: 56.4620, lon: -2.9707 };
 var weatherConfig = {};
 var weatherApiBase = 'https://api.open-meteo.com/v1/forecast';
+var weatherApiFallbackBases = [];
 var reverseGeoBase = 'https://nominatim.openstreetmap.org/reverse';
 var weatherRefreshMs = 600000;
 
@@ -129,8 +130,25 @@ function fetchLocationName(lat, lon) {
 function syncWeatherConfig() {
     weatherConfig = (window.BTCT_CONFIG && window.BTCT_CONFIG.weather) || {};
     weatherApiBase = weatherConfig.apiBase || 'https://api.open-meteo.com/v1/forecast';
+    weatherApiFallbackBases = Array.isArray(weatherConfig.apiFallbackBases) ? weatherConfig.apiFallbackBases.slice(0, 3) : [];
     reverseGeoBase = weatherConfig.reverseGeocodeBase || 'https://nominatim.openstreetmap.org/reverse';
     weatherRefreshMs = weatherConfig.refreshMs || 600000;
+}
+
+function fetchWeatherFromBases(urlSuffix, idx) {
+    var bases = [weatherApiBase].concat(weatherApiFallbackBases || []);
+    idx = idx || 0;
+    if (idx >= bases.length) return Promise.reject(new Error('weather_all_sources_failed'));
+    var base = String(bases[idx] || '').trim();
+    if (!base) return fetchWeatherFromBases(urlSuffix, idx + 1);
+    return fetch(base + urlSuffix)
+    .then(function(r) {
+        if (!r.ok) throw new Error('weather_http_' + r.status);
+        return r.json();
+    })
+    .catch(function() {
+        return fetchWeatherFromBases(urlSuffix, idx + 1);
+    });
 }
 
 // === FETCH WEATHER ===
@@ -138,14 +156,13 @@ function fetchWeather() {
     if (weatherLat === null || weatherLon === null) return;
     if (document.hidden) return;
 
-    var url = weatherApiBase + '?latitude=' + weatherLat + '&longitude=' + weatherLon;
+    var url = '?latitude=' + weatherLat + '&longitude=' + weatherLon;
     url += '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure';
     url += '&hourly=temperature_2m,weather_code,precipitation_probability';
     url += '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_speed_10m_max,relative_humidity_2m_mean';
     url += '&timezone=auto&forecast_days=7';
 
-    fetch(url)
-    .then(function(r) { return r.json(); })
+    fetchWeatherFromBases(url, 0)
     .then(function(data) {
         weatherData = data;
 

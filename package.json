@@ -12,6 +12,8 @@
     "wizard": "BTCT_FORCE_WIZARD=1 electron .",
     "lint:syntax": "node -e \"['js/config-base.js','js/config.js','js/app.js','js/btc.js','js/stocks.js','js/weather.js','js/pc.js','desktop/main.js','desktop/preload.js','desktop/local-server.js','desktop/config-store.js'].forEach(f=>new Function(require('fs').readFileSync(f,'utf8'))); console.log('ok')\"",
     "test:smoke": "node scripts/smoke.js",
+    "test:updater-smoke": "node scripts/updater-smoke.js",
+    "deps:audit": "npm audit --audit-level=moderate",
     "dist:win": "electron-builder --win nsis --publish never",
     "dist:win:publish": "electron-builder --win nsis --publish always"
   },

@@ -27,6 +27,7 @@ METRICS = {
         "stocks": {"ok": 0, "error": 0, "lastError": "", "lastOkAt": 0, "lastErrAt": 0}
     }
 }
+RATE_LIMIT = {}
 
 os.chdir(DIRECTORY)
 
@@ -37,6 +38,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         METRICS["requests"] += 1
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/") and self._rate_limited("api"):
+            self._json_error(429, "rate_limited", "Too many requests. Slow down.")
+            return
         if parsed.path == "/health":
             now = datetime.now(timezone.utc)
             uptime_ms = int((now - SERVER_STARTED_AT).total_seconds() * 1000)
@@ -58,6 +62,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_stocks_proxy(parsed.path, parse_qs(parsed.query or ""))
             return
         super().do_GET()
+
+    def _rate_limited(self, bucket):
+        ip = (self.client_address[0] if self.client_address else "unknown")
+        key = f"{bucket}:{ip}"
+        now = datetime.now(timezone.utc).timestamp()
+        window = 60
+        limit = 120
+        arr = [ts for ts in RATE_LIMIT.get(key, []) if now - ts < window]
+        arr.append(now)
+        RATE_LIMIT[key] = arr
+        return len(arr) > limit
 
     def _handle_pc_proxy(self):
         req = Request(PC_ENDPOINT, headers={"User-Agent": "btcticker-proxy/1.0"})

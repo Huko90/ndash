@@ -80,6 +80,19 @@ class LocalServer {
         stocks: { ok: 0, error: 0, lastError: '', lastOkAt: 0, lastErrAt: 0 }
       }
     };
+    this.rateLimit = new Map();
+  }
+
+  isRateLimited(req, bucketName) {
+    const now = Date.now();
+    const key = `${bucketName}:${(req.socket && req.socket.remoteAddress) || 'unknown'}`;
+    const windowMs = 60 * 1000;
+    const maxPerWindow = 120;
+    const arr = this.rateLimit.get(key) || [];
+    const next = arr.filter((ts) => now - ts < windowMs);
+    next.push(now);
+    this.rateLimit.set(key, next);
+    return next.length > maxPerWindow;
   }
 
   markApiResult(name, ok, err) {
@@ -120,6 +133,12 @@ class LocalServer {
     }
 
     if (urlPath === '/api/pc') {
+      if (this.isRateLimited(req, 'pc')) {
+        this.markApiResult('pc', false, new Error('rate_limited'));
+        res.writeHead(429, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ ok: false, error: 'rate_limited' }));
+        return;
+      }
       const desktopCfg = this.getDesktopConfig ? this.getDesktopConfig() : null;
       const endpoint = desktopCfg && desktopCfg.pc ? String(desktopCfg.pc.endpoint || '').trim() : '';
       if (!/^https?:\/\//i.test(endpoint)) {
@@ -129,7 +148,10 @@ class LocalServer {
         return;
       }
       try {
-        const upstream = await fetch(endpoint, { cache: 'no-store' });
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 7000);
+        const upstream = await fetch(endpoint, { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(t);
         if (!upstream.ok) {
           this.markApiResult('pc', false, new Error(`upstream_http_${upstream.status}`));
           res.writeHead(502, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -149,6 +171,12 @@ class LocalServer {
     }
 
     if (urlPath.startsWith('/api/stocks/')) {
+      if (this.isRateLimited(req, 'stocks')) {
+        this.markApiResult('stocks', false, new Error('rate_limited'));
+        res.writeHead(429, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ ok: false, error: 'stocks_rate_limited' }));
+        return;
+      }
       const allowQueryKey = process.env.BTCT_ALLOW_STOCKS_KEY_QUERY === '1';
       const requestKey = allowQueryKey ? String(reqUrl.searchParams.get('apiKey') || '').trim() : '';
       const stocksKey = String(process.env.BTCT_STOCKS_API_KEY || '').trim() || requestKey;

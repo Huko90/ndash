@@ -52,6 +52,7 @@
             lat: 56.4620,
             lon: -2.9707,
             apiBase: 'https://api.open-meteo.com/v1/forecast',
+            apiFallbackBases: [],
             searchGeocodeBase: 'https://nominatim.openstreetmap.org/search',
             reverseGeocodeBase: 'https://nominatim.openstreetmap.org/reverse',
             refreshMs: 600000
