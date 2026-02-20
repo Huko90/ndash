@@ -1,12 +1,12 @@
 /* WEATHER DASHBOARD */
-.weather-dash{display:none;position:relative;flex-direction:column;gap:clamp(2px,0.4vh,6px);overflow:hidden;flex:1;min-height:0;justify-content:flex-start}
-.weather-dash.active{display:flex}
+.weather-dash{display:flex;position:absolute;inset:0;flex-direction:column;gap:clamp(2px,0.4vh,6px);overflow:hidden;justify-content:flex-start;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0.25s ease;contain:layout style paint}
+.weather-dash.active{position:relative;opacity:1;visibility:visible;pointer-events:auto;flex:1;min-height:0}
 .weather-dash::before{content:'';position:absolute;inset:0;background:url('../weatherwallpaper.jpg') center center / cover no-repeat;opacity:var(--weather-image-opacity);pointer-events:none}
 .weather-dash::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,7,11,0.36),rgba(6,7,11,0.48));pointer-events:none}
 .weather-dash>*{position:relative;z-index:2;flex-shrink:1;min-height:0}
 /* Current weather - hero section */
 .weather-current{text-align:center;position:relative;flex:0 0 auto;padding:clamp(4px,0.7vh,10px);min-height:0;width:100%;box-sizing:border-box;background:linear-gradient(135deg,rgba(245,200,66,0.12),rgba(247,147,26,0.08));border-radius:clamp(6px,1vmin,14px);border:1px solid rgba(245,200,66,0.2);box-shadow:0 4px 20px rgba(245,200,66,0.15);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(3px,0.55vh,8px)}
-.weather-location{display:inline-flex;align-items:center;gap:clamp(4px,0.7vw,8px);padding:clamp(2px,0.4vh,4px) clamp(6px,1vw,12px);border-radius:100px;background:rgba(245,200,66,0.15);border:1px solid rgba(245,200,66,0.25);font-size:clamp(14px,2.1vmin,22px);color:var(--gold);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0;backdrop-filter:blur(10px)}
+.weather-location{display:inline-flex;align-items:center;gap:clamp(4px,0.7vw,8px);padding:clamp(2px,0.4vh,4px) clamp(6px,1vw,12px);border-radius:100px;background:rgba(245,200,66,0.15);border:1px solid rgba(245,200,66,0.25);font-size:clamp(14px,2.1vmin,22px);color:var(--gold);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0;backdrop-filter:blur(10px);max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .weather-location .dot{width:clamp(3px,0.5vmin,5px);height:clamp(3px,0.5vmin,5px);border-radius:50%;background:var(--gold);box-shadow:0 0 12px rgba(245,200,66,0.8);animation:pulse 2s infinite}
 .weather-temp-display{display:flex;align-items:baseline;justify-content:center;gap:clamp(2px,0.4vw,4px)}
 .weather-temp-num{font-family:'JetBrains Mono',monospace;font-size:clamp(52px,10.5vmin,120px);font-weight:800;background:linear-gradient(135deg,#f5c842,#f7931a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-2px;filter:drop-shadow(0 2px 20px rgba(245,200,66,0.4))}
@@ -18,7 +18,7 @@
 /* Weather stats grid */
 .weather-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(2px,0.4vw,6px);flex-shrink:1}
 .weather-stat{background:var(--card);backdrop-filter:blur(10px);padding:clamp(3px,0.6vh,10px) clamp(2px,0.4vw,8px);text-align:center;border-radius:clamp(5px,0.8vmin,10px);border:1px solid var(--border);transition:all .3s;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-.weather-stat:hover{transform:translateY(-2px);border-color:rgba(245,200,66,0.2);box-shadow:0 4px 16px rgba(245,200,66,0.1)}
+.weather-stat:hover{transform:translateY(-2px);border-color:rgba(245,200,66,0.25);box-shadow:0 4px 16px rgba(245,200,66,0.12);background:rgba(245,200,66,0.04)}
 .ws-icon{font-size:clamp(12px,2.4vmin,20px);margin-bottom:clamp(1px,0.3vh,4px);filter:drop-shadow(0 2px 4px rgba(245,200,66,0.2))}
 .ws-label{font-size:clamp(5px,1vmin,9px);text-transform:uppercase;letter-spacing:0.8px;color:var(--dim);font-weight:700;margin-bottom:clamp(1px,0.3vh,4px)}
 .ws-value{font-family:'JetBrains Mono',monospace;font-size:clamp(8px,1.5vmin,14px);font-weight:700;color:var(--hi)}
@@ -43,7 +43,7 @@
 .hourly-forecast-part{flex:1;min-height:0;display:flex;flex-direction:column}
 .hourly-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:clamp(1px,0.3vh,4px);flex-shrink:0}
 .hourly-title{font-size:clamp(5px,0.9vmin,9px);color:var(--dim);font-weight:700;letter-spacing:1px;text-transform:uppercase}
-.hourly-wrap{flex:1;min-height:0;border-radius:clamp(6px,1vmin,12px);background:var(--card);border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(0,0,0,0.05)}
+.hourly-wrap{flex:1;min-height:0;border-radius:clamp(6px,1vmin,12px);background:var(--card);border:1px solid var(--border);overflow:hidden;backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(0,0,0,0.05);-webkit-mask-image:linear-gradient(90deg,transparent,black 5%,black 95%,transparent);mask-image:linear-gradient(90deg,transparent,black 5%,black 95%,transparent)}
 .hourly-scroll{display:flex;gap:0;overflow-x:auto;height:100%;scrollbar-width:thin;-ms-overflow-style:auto;padding:clamp(1px,0.3vh,3px)}
 .hourly-scroll::-webkit-scrollbar{height:clamp(2px,0.4vh,4px)}
 .hourly-scroll::-webkit-scrollbar-track{background:rgba(255,255,255,0.03)}
@@ -60,9 +60,9 @@
 .forecast-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:clamp(2px,0.4vh,5px)}
 .forecast-title{font-size:clamp(6px,1vmin,10px);color:var(--dim);font-weight:700;letter-spacing:1px;text-transform:uppercase}
 .forecast-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;flex:1;padding:0;background:var(--border);border:1px solid var(--border);border-radius:clamp(6px,1vmin,12px);backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(0,0,0,0.05);overflow:hidden}
-.forecast-day{background:rgba(255,255,255,0.025);padding:clamp(3px,0.6vh,10px) clamp(2px,0.4vw,6px);text-align:center;cursor:pointer;transition:all .3s;display:flex;flex-direction:column;justify-content:space-between;backdrop-filter:blur(6px)}
+.forecast-day{background:rgba(255,255,255,0.025);padding:clamp(3px,0.6vh,10px) clamp(2px,0.4vw,6px);text-align:center;cursor:pointer;transition:all .3s;display:flex;flex-direction:column;justify-content:space-between;backdrop-filter:blur(6px);contain:layout style}
 .forecast-day:hover{background:rgba(245,200,66,0.08);transform:scale(1.02)}
-.forecast-day.active{background:rgba(245,200,66,0.14);box-shadow:inset 0 0 0 1px rgba(245,200,66,0.32)}
+.forecast-day.active{background:rgba(245,200,66,0.14);box-shadow:inset 0 0 0 1px rgba(245,200,66,0.32);transform:scale(1.02)}
 .fd-name{font-size:clamp(7px,1.2vmin,11px);font-weight:800;letter-spacing:.3px;color:var(--mid);margin-bottom:clamp(2px,0.5vh,6px);text-transform:uppercase}
 .fd-icon{font-size:clamp(16px,3.2vmin,28px);margin-bottom:clamp(2px,0.5vh,6px);filter:drop-shadow(0 2px 6px rgba(245,200,66,0.2))}
 .fd-temps{display:flex;flex-direction:column;gap:clamp(1px,0.2vh,2px)}
@@ -87,6 +87,9 @@
 .day-detail-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(3px,0.6vh,8px) clamp(4px,0.9vw,12px)}
 .day-detail-stat{display:flex;justify-content:space-between;align-items:center;padding:clamp(3px,0.5vh,6px) clamp(4px,0.7vw,10px);background:rgba(255,255,255,0.02);border-radius:clamp(4px,0.7vmin,8px);border:1px solid var(--border);transition:all .2s}
 .day-detail-stat:hover{background:rgba(245,200,66,0.05);border-color:rgba(245,200,66,0.15);transform:translateX(2px)}
+.day-detail-stat{animation:detailFadeIn 0.3s ease backwards}
+.day-detail-stat:nth-child(1){animation-delay:0s}.day-detail-stat:nth-child(2){animation-delay:0.03s}.day-detail-stat:nth-child(3){animation-delay:0.06s}.day-detail-stat:nth-child(4){animation-delay:0.09s}.day-detail-stat:nth-child(5){animation-delay:0.12s}.day-detail-stat:nth-child(6){animation-delay:0.15s}.day-detail-stat:nth-child(7){animation-delay:0.18s}.day-detail-stat:nth-child(8){animation-delay:0.21s}
+@keyframes detailFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .day-detail-stat-label{font-size:clamp(5px,0.9vmin,9px);color:var(--dim);text-transform:uppercase;letter-spacing:0.5px;font-weight:700}
 .day-detail-stat-val{font-family:'JetBrains Mono',monospace;font-size:clamp(7px,1.2vmin,11px);font-weight:800;color:var(--hi)}
 /* Responsive */

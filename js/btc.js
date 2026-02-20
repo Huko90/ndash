@@ -52,12 +52,18 @@ var dragStartX = 0, dragStartOffset = 0;
 var tfMap = {'1m':'1m','5m':'5m','15m':'15m','1h':'1h','4h':'4h','1d':'1d'};
 var needsRedraw = false;
 var lastWSMessage = Date.now();
-var apiRetries = {fgi:0, dom:0, oi:0, perf:0};
+var apiRetries = {fgi:0, dom:0, perf:0, kline:0, heatmap:0};
+var fetchController = null;
 var lastBtcStampTs = 0;
+var indicatorCache = {};
+var pendingTradeUpdate = null;
+var tradeRafId = 0;
+var lastCacheSaveAt = 0;
+var onOnlineCb = null;
 
 // === INTERVALS & WEBSOCKETS ===
 var intervals = [];
-var mainWS = null, klineWS = null;
+var mainMWS = null, klineMWS = null;
 
 // === SYMBOL DATA ===
 var symbolDefs = {};
@@ -85,9 +91,6 @@ function syncBtcConfig() {
     heatmapCoins = btcConfig.heatmapCoins || ['BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','ADAUSDT','DOGEUSDT','TRXUSDT','AVAXUSDT','LINKUSDT'];
 }
 syncBtcConfig();
-
-// === HEATMAP CONFIG ===
-var heatmapCoins = btcConfig.heatmapCoins || ['BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','ADAUSDT','DOGEUSDT','TRXUSDT','AVAXUSDT','LINKUSDT'];
 
 // === ROLLING DIGITS ===
 function updateDigits(price) {
@@ -224,63 +227,7 @@ function checkAlerts(p) {
     if (!alertLow || p > alertLow * 1.002) lowAlertLatched = false;
 }
 
-// === TECHNICAL INDICATORS ===
-function calcSMA(data, period) {
-    var result = [];
-    for (var i = 0; i < data.length; i++) {
-        if (i < period - 1) { result.push(null); continue; }
-        var sum = 0;
-        for (var j = 0; j < period; j++) sum += data[i-j].close;
-        result.push(sum / period);
-    }
-    return result;
-}
-
-function calcEMA(data, period) {
-    var result = [], k = 2 / (period + 1);
-    for (var i = 0; i < data.length; i++) {
-        if (i === 0) { result.push(data[i].close); continue; }
-        if (i < period - 1) { result.push(null); continue; }
-        if (result[i-1] === null) {
-            var sum = 0; for (var j = 0; j < period; j++) sum += data[i-j].close;
-            result.push(sum / period);
-        } else {
-            result.push(data[i].close * k + result[i-1] * (1 - k));
-        }
-    }
-    return result;
-}
-
-function calcBollinger(data, period, mult) {
-    var sma = calcSMA(data, period);
-    var upper = [], lower = [];
-    for (var i = 0; i < data.length; i++) {
-        if (sma[i] === null) { upper.push(null); lower.push(null); continue; }
-        var sum = 0;
-        for (var j = 0; j < period; j++) sum += Math.pow(data[i-j].close - sma[i], 2);
-        var std = Math.sqrt(sum / period);
-        upper.push(sma[i] + mult * std);
-        lower.push(sma[i] - mult * std);
-    }
-    return {middle:sma, upper:upper, lower:lower};
-}
-
-function calcRSI(data, period) {
-    var result = [], gains = [], losses = [];
-    for (var i = 0; i < data.length; i++) {
-        if (i === 0) { result.push(null); continue; }
-        var change = data[i].close - data[i-1].close;
-        gains.push(change > 0 ? change : 0);
-        losses.push(change < 0 ? -change : 0);
-        if (i < period) { result.push(null); continue; }
-        var avgGain = 0, avgLoss = 0;
-        for (var j = gains.length - period; j < gains.length; j++) { avgGain += gains[j]; avgLoss += losses[j]; }
-        avgGain /= period; avgLoss /= period;
-        if (avgLoss === 0) { result.push(100); }
-        else { var rs = avgGain / avgLoss; result.push(100 - (100 / (1 + rs))); }
-    }
-    return result;
-}
+// Technical indicators provided by js/lib/indicators.js (window.Indicators)
 
 // === CHART RENDERING ===
 function getVisibleData() {
@@ -365,24 +312,30 @@ function drawChart() {
         ctx.closePath(); ctx.fillStyle = grd; ctx.fill();
     }
 
-    // Indicators
-    if (indicators.sma) {
-        var sma = calcSMA(klineData[activeTF] || [], 20);
-        var visibleSMA = sma.slice(sma.length - data.length - scrollOffset, sma.length - scrollOffset);
+    // Indicators (cached — only recalculated when candle data changes)
+    var allData = klineData[activeTF] || [];
+    var cacheKey = activeTF + ':' + allData.length + ':' + (allData.length ? allData[allData.length-1].time : 0);
+    if (indicatorCache._key !== cacheKey) {
+        indicatorCache._key = cacheKey;
+        indicatorCache.sma = indicators.sma ? Indicators.sma(allData, 20) : null;
+        indicatorCache.ema = indicators.ema ? Indicators.ema(allData, 12) : null;
+        indicatorCache.boll = indicators.boll ? Indicators.bollinger(allData, 20, 2) : null;
+        indicatorCache.rsi = indicators.rsi ? Indicators.rsi(allData, 14) : null;
+    }
+    if (indicators.sma && indicatorCache.sma) {
+        var visibleSMA = indicatorCache.sma.slice(indicatorCache.sma.length - data.length - scrollOffset, indicatorCache.sma.length - scrollOffset);
         drawIndicatorLine(visibleSMA, '#3b82f6', priceToY, step, pad);
     }
-    if (indicators.ema) {
-        var ema = calcEMA(klineData[activeTF] || [], 12);
-        var visibleEMA = ema.slice(ema.length - data.length - scrollOffset, ema.length - scrollOffset);
+    if (indicators.ema && indicatorCache.ema) {
+        var visibleEMA = indicatorCache.ema.slice(indicatorCache.ema.length - data.length - scrollOffset, indicatorCache.ema.length - scrollOffset);
         drawIndicatorLine(visibleEMA, '#f97316', priceToY, step, pad);
     }
-    if (indicators.boll) {
-        var boll = calcBollinger(klineData[activeTF] || [], 20, 2);
-        var startIdx = (klineData[activeTF] || []).length - data.length - scrollOffset;
+    if (indicators.boll && indicatorCache.boll) {
+        var startIdx = allData.length - data.length - scrollOffset;
         var endIdx = startIdx + data.length;
-        drawIndicatorLine(boll.upper.slice(startIdx, endIdx), '#a855f7', priceToY, step, pad, 0.5);
-        drawIndicatorLine(boll.middle.slice(startIdx, endIdx), '#a855f7', priceToY, step, pad, 0.3);
-        drawIndicatorLine(boll.lower.slice(startIdx, endIdx), '#a855f7', priceToY, step, pad, 0.5);
+        drawIndicatorLine(indicatorCache.boll.upper.slice(startIdx, endIdx), '#a855f7', priceToY, step, pad, 0.5);
+        drawIndicatorLine(indicatorCache.boll.middle.slice(startIdx, endIdx), '#a855f7', priceToY, step, pad, 0.3);
+        drawIndicatorLine(indicatorCache.boll.lower.slice(startIdx, endIdx), '#a855f7', priceToY, step, pad, 0.5);
     }
 
     // Volume bars
@@ -396,11 +349,10 @@ function drawChart() {
         ctx.fillRect(x - candleW/2, volTop + volHeight - volH, candleW, volH);
     }
 
-    // RSI
-    if (indicators.rsi) {
+    // RSI (cached)
+    if (indicators.rsi && indicatorCache.rsi) {
         var rsiTop = mainHeight + volHeight + 8;
-        var rsi = calcRSI(klineData[activeTF] || [], 14);
-        var visibleRSI = rsi.slice(rsi.length - data.length - scrollOffset, rsi.length - scrollOffset);
+        var visibleRSI = indicatorCache.rsi.slice(indicatorCache.rsi.length - data.length - scrollOffset, indicatorCache.rsi.length - scrollOffset);
         ctx.fillStyle = 'rgba(255,255,255,0.02)';
         ctx.fillRect(0, rsiTop, w, rsiHeight);
         ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 0.5; ctx.setLineDash([4,4]);
@@ -445,7 +397,7 @@ function drawIndicatorLine(values, color, priceToY, step, pad, alpha) {
 }
 
 function scheduleRedraw() {
-    if (document.hidden) return;
+    if (!active || document.hidden) return;
     if (!needsRedraw) {
         needsRedraw = true;
         requestAnimationFrame(function() { drawChart(); needsRedraw = false; });
@@ -497,7 +449,7 @@ overlay.addEventListener('mousedown', function(e) {
     isDragging = true; dragStartX = e.clientX; dragStartOffset = scrollOffset;
     overlay.style.cursor = 'grabbing';
 });
-document.addEventListener('mousemove', function(e) {
+var onDocMouseMove = function(e) {
     if (!isDragging) return;
     var dx = e.clientX - dragStartX;
     var rect = overlay.getBoundingClientRect();
@@ -507,10 +459,10 @@ document.addEventListener('mousemove', function(e) {
     var maxOffset = Math.max(0, data.length - visibleCandles);
     scrollOffset = Math.max(0, Math.min(maxOffset, dragStartOffset + candlesMoved));
     scheduleRedraw();
-});
-document.addEventListener('mouseup', function() {
+};
+var onDocMouseUp = function() {
     isDragging = false; overlay.style.cursor = 'crosshair';
-});
+};
 
 // === TOUCH SUPPORT ===
 var touchStartX = 0, lastTouchDist = 0;
@@ -549,24 +501,29 @@ overlay.addEventListener('touchmove', function(e) {
 
 // === CHART TYPE TOGGLE ===
 document.querySelectorAll('.chart-type-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.chart-type-btn').forEach(function(b) { b.classList.remove('active'); });
+    function activate() {
+        document.querySelectorAll('.chart-type-btn').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
         chartMode = btn.dataset.type;
         setPref('chartMode', chartMode);
         scheduleRedraw();
-    });
+    }
+    btn.addEventListener('click', activate);
+    btn.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
 });
 
 // === TIMEFRAME TABS ===
 document.querySelectorAll('.chart-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-        document.querySelectorAll('.chart-tab').forEach(function(t) { t.classList.remove('active'); });
+    function activate() {
+        document.querySelectorAll('.chart-tab').forEach(function(t) { t.classList.remove('active'); t.setAttribute('aria-pressed', 'false'); });
         tab.classList.add('active');
+        tab.setAttribute('aria-pressed', 'true');
         var newTF = tab.dataset.tf;
         if (newTF !== activeTF) {
             activeTF = newTF;
             setPref('btcTf', activeTF);
+            indicatorCache = {};
             scrollOffset = 0;
             visibleCandles = 100;
             if (!klineData[activeTF] || klineData[activeTF].length === 0) {
@@ -575,28 +532,39 @@ document.querySelectorAll('.chart-tab').forEach(function(tab) {
             reconnectKlineWS();
             scheduleRedraw();
         }
-    });
+    }
+    tab.addEventListener('click', activate);
+    tab.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
 });
 
 // === INDICATOR TOGGLES ===
 document.querySelectorAll('.ind-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+    function activate() {
         var ind = btn.dataset.ind;
         indicators[ind] = !indicators[ind];
         btn.classList.toggle('active', indicators[ind]);
+        btn.setAttribute('aria-pressed', indicators[ind] ? 'true' : 'false');
         setPref('indicators', indicators);
+        indicatorCache = {};
         chartWrap.classList.toggle('with-rsi', indicators.rsi);
         scheduleRedraw();
-    });
+    }
+    btn.addEventListener('click', activate);
+    btn.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
 });
 
 // === ALERT CONTROLS ===
 if (setAlertBtn) {
     setAlertBtn.addEventListener('click', function() {
-        var nextHigh = parseFloat(alertHighInput && alertHighInput.value);
-        var nextLow = parseFloat(alertLowInput && alertLowInput.value);
-        alertHigh = isNaN(nextHigh) ? 0 : nextHigh;
-        alertLow = isNaN(nextLow) ? 0 : nextLow;
+        var highVal = alertHighInput ? alertHighInput.value.trim() : '';
+        var lowVal = alertLowInput ? alertLowInput.value.trim() : '';
+        var nextHigh = highVal ? parseFloat(highVal) : 0;
+        var nextLow = lowVal ? parseFloat(lowVal) : 0;
+        if (highVal && (!isFinite(nextHigh) || nextHigh < 0)) { App.toast('Invalid high alert value', 'warn'); return; }
+        if (lowVal && (!isFinite(nextLow) || nextLow < 0)) { App.toast('Invalid low alert value', 'warn'); return; }
+        if (nextHigh > 0 && nextLow > 0 && nextHigh <= nextLow) { App.toast('High alert must be greater than low alert', 'warn'); return; }
+        alertHigh = nextHigh;
+        alertLow = nextLow;
         highAlertLatched = false;
         lowAlertLatched = false;
         saveAlertState();
@@ -655,79 +623,88 @@ if (notifyPermBtn) {
 
 // === FULLSCREEN BUTTON (chart) ===
 fullscreenBtn.addEventListener('click', App.toggleFullscreen);
-document.addEventListener('fullscreenchange', function() {
+var onDocFullscreenChange = function() {
     if (active) setTimeout(scheduleRedraw, 100);
-});
-document.addEventListener('visibilitychange', function() {
+};
+var onDocVisibilityChange = function() {
     if (!active || document.hidden) return;
     fetchFGI();
     fetchDominance();
     fetchPerformance();
     fetchHeatmap();
     scheduleRedraw();
-});
+};
+function abortPendingFetches() {
+    if (fetchController) fetchController.abort();
+    fetchController = new AbortController();
+    return fetchController.signal;
+}
 
 // === FETCH HISTORICAL KLINES ===
 function fetchKlines(tf) {
     var interval = tfMap[tf] || '1m';
-    fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=' + interval + '&limit=' + MAX_CANDLES))
+    var sig = fetchController ? fetchController.signal : undefined;
+    fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=' + interval + '&limit=' + MAX_CANDLES), {signal:sig})
     .then(function(r) { return r.json(); })
     .then(function(data) {
+        if (!active) return;
         klineData[tf] = data.map(function(k) {
             return { time:k[0], open:parseFloat(k[1]), high:parseFloat(k[2]), low:parseFloat(k[3]), close:parseFloat(k[4]), volume:parseFloat(k[5]) };
         });
         App.setSourceStatus('binance', true);
+        apiRetries.kline = 0;
         if (tf === activeTF) {
             visibleCandles = Math.min(100, klineData[tf].length);
             scrollOffset = 0;
         }
         scheduleRedraw();
     }).catch(function(e) {
+        if (e && e.name === 'AbortError') return;
         App.setSourceStatus('binance', false);
         console.error('Kline fetch error:', e);
+        apiRetries.kline++;
+        if (apiRetries.kline < 5) setTimeout(function() { fetchKlines(tf); }, Math.min(60000 * apiRetries.kline, 300000));
     });
 }
 
 // === KLINE WEBSOCKET ===
-function connectKlineWS() {
-    if (!active) return;
-    var interval = tfMap[activeTF] || '1m';
-    var sym = currentSymbol.toLowerCase();
-    klineWS = new WebSocket(wsUrl('/ws/' + sym + '@kline_' + interval));
-    klineWS.onmessage = function(e) {
-        lastWSMessage = Date.now();
-        var msg = JSON.parse(e.data);
-        if (!msg.k) return;
-        var k = msg.k;
-        var candle = { time:k.t, open:parseFloat(k.o), high:parseFloat(k.h), low:parseFloat(k.l), close:parseFloat(k.c), volume:parseFloat(k.v) };
-        var data = klineData[activeTF];
-        if (!data) return;
-        if (data.length > 0 && data[data.length-1].time === candle.time) {
-            data[data.length-1] = candle;
-        } else if (k.x) {
-            data.push(candle);
-            if (data.length > MAX_CANDLES) data.shift();
-        } else if (data.length > 0) {
-            data[data.length-1] = candle;
-        }
-        scheduleRedraw();
-    };
-    klineWS.onclose = function() {
-        if (active) { console.log('Kline WS closed, reconnecting...'); setTimeout(connectKlineWS, 3000); }
-    };
-    klineWS.onerror = function() { klineWS.close(); };
-}
-
-function reconnectKlineWS() {
-    if (klineWS) { klineWS.onclose = null; klineWS.close(); }
-    connectKlineWS();
+function initKlineMWS() {
+    klineMWS = new ManagedWebSocket({
+        url: function() {
+            var interval = tfMap[activeTF] || '1m';
+            return wsUrl('/ws/' + currentSymbol.toLowerCase() + '@kline_' + interval);
+        },
+        onMessage: function(e) {
+            var msg;
+            try { msg = JSON.parse(e.data); } catch (_) { return; }
+            if (!msg.k) return;
+            var k = msg.k;
+            var o = parseFloat(k.o), h = parseFloat(k.h), l = parseFloat(k.l), c = parseFloat(k.c), v = parseFloat(k.v);
+            if (!isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c)) return;
+            var candle = { time:k.t, open:o, high:h, low:l, close:c, volume:isFinite(v)?v:0 };
+            var data = klineData[activeTF];
+            if (!data) return;
+            if (data.length > 0 && data[data.length-1].time === candle.time) {
+                data[data.length-1] = candle;
+            } else if (k.x) {
+                data.push(candle);
+                if (data.length > MAX_CANDLES) data.shift();
+            } else if (data.length > 0) {
+                data[data.length-1] = candle;
+            }
+            scheduleRedraw();
+        },
+        reconnectDelay: 3000,
+        backoff: false
+    });
 }
 
 // === FEAR & GREED INDEX ===
 function fetchFGI() {
-    fetch(fearGreedApi)
+    fetch(fearGreedApi, {signal: fetchController ? fetchController.signal : undefined})
     .then(function(r) { return r.json(); })
     .then(function(d) {
+        if (!active) return;
         if (d && d.data && d.data[0]) {
             var val = parseInt(d.data[0].value), cls = d.data[0].value_classification;
             fgiNeedle.style.left = val + '%';
@@ -736,119 +713,144 @@ function fetchFGI() {
             apiRetries.fgi = 0;
         }
     }).catch(function(e) {
+        if (e && e.name === 'AbortError') return;
         console.error('FGI error:', e);
         apiRetries.fgi++;
         if (apiRetries.fgi < 5) setTimeout(fetchFGI, Math.min(60000 * apiRetries.fgi, 300000));
+        else { fgiText.textContent = '--'; fgiText.style.color = ''; }
     });
 }
 
 // === BTC DOMINANCE ===
 function fetchDominance() {
-    fetch(dominanceApi)
+    fetch(dominanceApi, {signal: fetchController ? fetchController.signal : undefined})
     .then(function(r) { return r.json(); })
     .then(function(d) {
+        if (!active) return;
         if (d && d.data && d.data.market_cap_percentage) {
             var dom = d.data.market_cap_percentage.btc;
             sDom.textContent = dom.toFixed(1) + '%';
             apiRetries.dom = 0;
         }
     }).catch(function(e) {
+        if (e && e.name === 'AbortError') return;
         console.error('Dominance error:', e);
         apiRetries.dom++;
         if (apiRetries.dom < 5) setTimeout(fetchDominance, Math.min(60000 * apiRetries.dom, 300000));
+        else sDom.textContent = '--';
     });
 }
 
 // === MAIN BINANCE WEBSOCKET ===
-var reconnectDelay = 1000;
-function connect() {
-    if (!active) return;
-    var sym = currentSymbol.toLowerCase();
-    mainWS = new WebSocket(wsUrl('/stream?streams=' + sym + '@trade/' + sym + '@ticker/' + sym + '@depth5@100ms'));
-    mainWS.onopen = function() {
-        App.setLive(true, 'Live');
-        App.setSourceStatus('binance', true);
-        App.el.logo.classList.remove('pulse'); void App.el.logo.offsetWidth; App.el.logo.classList.add('pulse');
-        reconnectDelay = 1000;
-        lastWSMessage = Date.now();
-    };
-    mainWS.onclose = function() {
-        App.setLive(false, 'Offline');
-        App.setSourceStatus('binance', false);
-        if (active) { console.log('Main WS closed, reconnecting...'); setTimeout(connect, reconnectDelay); reconnectDelay = Math.min(reconnectDelay * 2, 30000); }
-    };
-    mainWS.onerror = function() { mainWS.close(); };
-    mainWS.onmessage = function(e) {
-        App.incMsg();
-        lastWSMessage = Date.now();
-        var msg = JSON.parse(e.data), stream = msg.stream, d = msg.data;
-        if (!d) return;
-        var sym = currentSymbol.toLowerCase();
+function initMainMWS() {
+    mainMWS = new ManagedWebSocket({
+        url: function() {
+            var sym = currentSymbol.toLowerCase();
+            return wsUrl('/stream?streams=' + sym + '@trade/' + sym + '@ticker/' + sym + '@depth5@100ms');
+        },
+        onConnect: function() {
+            App.setLive(true, 'Live');
+            App.setSourceStatus('binance', true);
+            App.el.logo.classList.remove('pulse'); void App.el.logo.offsetWidth; App.el.logo.classList.add('pulse');
+        },
+        onDisconnect: function() {
+            App.setLive(false, 'Offline');
+            App.setSourceStatus('binance', false);
+        },
+        onMessage: function(e) {
+            App.incMsg();
+            lastWSMessage = Date.now();
+            var msg;
+            try { msg = JSON.parse(e.data); } catch (_) { return; }
+            var stream = msg.stream, d = msg.data;
+            if (!d) return;
+            var sym = currentSymbol.toLowerCase();
 
-        // TRADE
-        if (stream === sym + '@trade') {
-            var p = parseFloat(d.p), q = parseFloat(d.q), val = p * q;
-            lastPrice = curPrice; curPrice = p;
-            updateDigits(p);
-            var dec = p.toFixed(2).split('.')[1];
-            pDec.textContent = '.' + dec;
-            if (lastPrice) {
-                var up = p > lastPrice;
-                if (p !== lastPrice) flashPrice(up);
-                pDec.style.color = up ? 'rgba(0,230,118,0.6)' : 'rgba(255,23,68,0.6)';
-                setTimeout(function() { pDec.style.color = ''; }, 300);
+            // TRADE — buffer state, apply DOM changes once per frame
+            if (stream === sym + '@trade') {
+                var p = parseFloat(d.p), q = parseFloat(d.q);
+                if (!isFinite(p) || !isFinite(q)) return;
+                var val = p * q;
+                lastPrice = curPrice; curPrice = p;
+                if (d.m === false) { buyVol += val; cvd += val; } else { sellVol += val; cvd -= val; }
+                checkAlerts(p);
+                pendingTradeUpdate = { price: p, up: lastPrice ? p > lastPrice : null, changed: p !== lastPrice };
+                if (!tradeRafId) {
+                    tradeRafId = requestAnimationFrame(function() {
+                        tradeRafId = 0;
+                        var t = pendingTradeUpdate;
+                        if (!t) return;
+                        pendingTradeUpdate = null;
+                        updateDigits(t.price);
+                        App.setTitle('\u20bf $' + App.fmtP(t.price));
+                        pDec.textContent = '.' + t.price.toFixed(2).split('.')[1];
+                        if (t.up !== null) {
+                            if (t.changed) flashPrice(t.up);
+                            pDec.style.color = t.up ? 'rgba(0,230,118,0.6)' : 'rgba(255,23,68,0.6)';
+                            setTimeout(function() { pDec.style.color = ''; }, 300);
+                            updateOrbs(t.up ? 1 : -1);
+                            App.updateFavicon(t.up ? 1 : -1);
+                        }
+                        var totalVol = buyVol + sellVol;
+                        if (totalVol > 0) {
+                            var buyPct = (buyVol / totalVol * 100);
+                            pressureFill.style.width = buyPct.toFixed(1) + '%';
+                            pBuy.textContent = buyPct.toFixed(0) + '%';
+                            pSell.textContent = (100 - buyPct).toFixed(0) + '%';
+                        }
+                        // Throttled cache save (every 10s)
+                        if (Date.now() - lastCacheSaveAt > 10000 && curPrice) {
+                            lastCacheSaveAt = Date.now();
+                            setPref('btcCache', {price:curPrice, high24:high24, low24:low24, symbol:currentSymbol, ts:Date.now()});
+                        }
+                    });
+                }
             }
-            if (d.m === false) { buyVol += val; cvd += val; } else { sellVol += val; cvd -= val; }
-            var totalVol = buyVol + sellVol;
-            if (totalVol > 0) {
-                var buyPct = (buyVol / totalVol * 100);
-                pressureFill.style.width = buyPct.toFixed(1) + '%';
-                pBuy.textContent = buyPct.toFixed(0) + '%';
-                pSell.textContent = (100 - buyPct).toFixed(0) + '%';
-            }
-            if (lastPrice) updateOrbs(p - lastPrice);
-            checkAlerts(p);
-        }
 
-        // 24h TICKER
-        if (stream === sym + '@ticker') {
-            high24 = parseFloat(d.h); low24 = parseFloat(d.l);
-            sHigh.textContent = '$' + App.fmtI(high24);
-            sLow.textContent = '$' + App.fmtI(low24);
-            if (curPrice) {
-                var dH = ((curPrice - high24) / high24 * 100).toFixed(2);
-                var dL = ((curPrice - low24) / low24 * 100).toFixed(2);
-                sHighD.textContent = dH + '%'; sHighD.style.color = dH >= 0 ? 'var(--green)' : 'var(--red)';
-                sLowD.textContent = '+' + dL + '%'; sLowD.style.color = 'var(--green)';
+            // 24h TICKER
+            if (stream === sym + '@ticker') {
+                high24 = parseFloat(d.h); low24 = parseFloat(d.l);
+                if (!isFinite(high24) || !isFinite(low24)) return;
+                sHigh.textContent = '$' + App.fmtI(high24);
+                sLow.textContent = '$' + App.fmtI(low24);
+                if (curPrice) {
+                    var dH = ((curPrice - high24) / high24 * 100).toFixed(2);
+                    var dL = ((curPrice - low24) / low24 * 100).toFixed(2);
+                    sHighD.textContent = dH + '%'; sHighD.style.color = dH >= 0 ? 'var(--green)' : 'var(--red)';
+                    sLowD.textContent = '+' + dL + '%'; sLowD.style.color = 'var(--green)';
+                }
+                var pctChange = parseFloat(d.P), absChange = parseFloat(d.p);
+                var pos = pctChange >= 0;
+                changePill.className = 'change-pill ' + (pos ? 'pos' : 'neg');
+                changeIcon.textContent = pos ? '▲' : '▼';
+                changePct.textContent = (pos ? '+' : '') + pctChange.toFixed(2) + '%';
+                changeAbs.textContent = (pos ? '+' : '') + App.fmtP(absChange);
+                var vol = parseFloat(d.q) * ((high24 + low24) / 2);
+                volVal.textContent = App.fmtV(vol);
+                var volPct = Math.min(100, vol / 5e10 * 100);
+                volFill.style.width = volPct.toFixed(1) + '%';
+                var trades = parseInt(d.n);
+                sTrades.textContent = trades >= 1e6 ? (trades/1e6).toFixed(1) + 'M' : trades >= 1e3 ? (trades/1e3).toFixed(0) + 'K' : trades;
+                sTps.textContent = Math.round(trades / 86400) + ' tps';
             }
-            var pctChange = parseFloat(d.P), absChange = parseFloat(d.p);
-            var pos = pctChange >= 0;
-            changePill.className = 'change-pill ' + (pos ? 'pos' : 'neg');
-            changeIcon.textContent = pos ? '▲' : '▼';
-            changePct.textContent = (pos ? '+' : '') + pctChange.toFixed(2) + '%';
-            changeAbs.textContent = (pos ? '+' : '') + App.fmtP(absChange);
-            var vol = parseFloat(d.q) * ((high24 + low24) / 2);
-            volVal.textContent = App.fmtV(vol);
-            var volPct = Math.min(100, vol / 5e10 * 100);
-            volFill.style.width = volPct.toFixed(1) + '%';
-            var trades = parseInt(d.n);
-            sTrades.textContent = trades >= 1e6 ? (trades/1e6).toFixed(1) + 'M' : trades >= 1e3 ? (trades/1e3).toFixed(0) + 'K' : trades;
-            sTps.textContent = Math.round(trades / 86400) + ' tps';
-        }
 
-        // ORDER BOOK DEPTH
-        if (stream === sym + '@depth5@100ms') {
-            if (d.bids && d.bids.length && d.asks && d.asks.length) {
-                var bestBid = parseFloat(d.bids[0][0]), bestAsk = parseFloat(d.asks[0][0]);
-                var spread = (bestAsk - bestBid).toFixed(2);
-                sSpread.textContent = '$' + spread;
+            // ORDER BOOK DEPTH
+            if (stream === sym + '@depth5@100ms') {
+                if (d.bids && d.bids.length && d.asks && d.asks.length) {
+                    var bestBid = parseFloat(d.bids[0][0]), bestAsk = parseFloat(d.asks[0][0]);
+                    var spread = (bestAsk - bestBid).toFixed(2);
+                    sSpread.textContent = '$' + spread;
+                }
             }
-        }
-        if (Date.now() - lastBtcStampTs > 5000) {
-            App.touchSection('btc');
-            lastBtcStampTs = Date.now();
-        }
-    };
+            if (Date.now() - lastBtcStampTs > 5000) {
+                App.touchSection('btc');
+                lastBtcStampTs = Date.now();
+            }
+        },
+        reconnectDelay: 1000,
+        maxReconnectDelay: 30000,
+        backoff: true
+    });
 }
 
 // === PERFORMANCE (7D, 30D, YTD) ===
@@ -857,13 +859,15 @@ function fetchPerformance() {
     var day7 = now - 7*24*60*60*1000;
     var day30 = now - 30*24*60*60*1000;
     var ytdStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+    var sig = fetchController ? fetchController.signal : undefined;
 
     Promise.all([
-        fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=1d&startTime=' + day7 + '&limit=1')).then(function(r) { return r.json(); }),
-        fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=1d&startTime=' + day30 + '&limit=1')).then(function(r) { return r.json(); }),
-        fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=1d&startTime=' + ytdStart + '&limit=1')).then(function(r) { return r.json(); }),
-        fetch(apiUrl('/api/v3/ticker/price?symbol=' + currentSymbol)).then(function(r) { return r.json(); })
+        fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=1d&startTime=' + day7 + '&limit=1'), {signal:sig}).then(function(r) { return r.json(); }),
+        fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=1d&startTime=' + day30 + '&limit=1'), {signal:sig}).then(function(r) { return r.json(); }),
+        fetch(apiUrl('/api/v3/klines?symbol=' + currentSymbol + '&interval=1d&startTime=' + ytdStart + '&limit=1'), {signal:sig}).then(function(r) { return r.json(); }),
+        fetch(apiUrl('/api/v3/ticker/price?symbol=' + currentSymbol), {signal:sig}).then(function(r) { return r.json(); })
     ]).then(function(results) {
+        if (!active) return;
         var price7d = parseFloat(results[0][0][1]);
         var price30d = parseFloat(results[1][0][1]);
         var priceYtd = parseFloat(results[2][0][1]);
@@ -881,22 +885,26 @@ function fetchPerformance() {
         perfYtd.className = 'perf-val ' + (pctYtd >= 0 ? 'pos' : 'neg');
         apiRetries.perf = 0;
     }).catch(function(e) {
+        if (e && e.name === 'AbortError') return;
         console.error('Performance error:', e);
         apiRetries.perf++;
         if (apiRetries.perf < 5) setTimeout(fetchPerformance, Math.min(60000 * apiRetries.perf, 300000));
+        else { perf7d.textContent = '--'; perf30d.textContent = '--'; perfYtd.textContent = '--'; }
     });
 }
 
 // === HEATMAP ===
 function fetchHeatmap() {
     if (!heatmapEl || heatmapCoins.length === 0) return;
+    var sig = fetchController ? fetchController.signal : undefined;
     var promises = heatmapCoins.map(function(sym) {
-        return fetch(apiUrl('/api/v3/ticker/24hr?symbol=' + sym))
+        return fetch(apiUrl('/api/v3/ticker/24hr?symbol=' + sym), {signal:sig})
             .then(function(r) { return r.json(); })
             .catch(function() { return null; });
     });
 
     Promise.all(promises).then(function(results) {
+        if (!active) return;
         var data = results.filter(function(r) { return r !== null; });
         if (data.length === 0) return;
 
@@ -911,16 +919,25 @@ function fetchHeatmap() {
                 'rgba(0,230,118,' + (0.2 + intensity * 0.6) + ')' :
                 'rgba(255,23,68,' + (0.2 + intensity * 0.6) + ')';
             var isActive = t.symbol === currentSymbol ? ' active' : '';
-            html += '<div class="hm-item' + isActive + '" data-symbol="' + t.symbol + '" style="background:' + bg + '">';
-            html += '<div class="hm-symbol">' + sym + '</div>';
+            var pctLabel = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+            html += '<div class="hm-item' + isActive + '" data-symbol="' + App.escapeHTML(t.symbol) + '" style="background:' + bg + '" role="button" tabindex="0" aria-label="' + App.escapeHTML(sym) + ' ' + pctLabel + '">';
+            html += '<div class="hm-symbol">' + App.escapeHTML(sym) + '</div>';
             html += '<div class="hm-change">' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%</div>';
             html += '</div>';
         });
         heatmapEl.innerHTML = html;
         heatmapEl.querySelectorAll('.hm-item').forEach(function(item) {
-            item.addEventListener('click', function() { switchSymbol(item.dataset.symbol); });
+            function activate() { switchSymbol(item.dataset.symbol); }
+            item.addEventListener('click', activate);
+            item.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
         });
-    }).catch(function(e) { console.error('Heatmap error:', e); });
+    }).catch(function(e) {
+        if (e && e.name === 'AbortError') return;
+        console.error('Heatmap error:', e);
+        apiRetries.heatmap++;
+        if (apiRetries.heatmap < 5) setTimeout(fetchHeatmap, Math.min(60000 * apiRetries.heatmap, 300000));
+        else heatmapEl.innerHTML = '<span class="loading-text">Unavailable</span>';
+    });
 }
 
 // === SWITCH SYMBOL ===
@@ -928,6 +945,10 @@ function switchSymbol(newSymbol) {
     if (newSymbol === currentSymbol) return;
     currentSymbol = newSymbol;
     setPref('btcSymbol', currentSymbol);
+
+    // Abort in-flight fetches from previous symbol
+    abortPendingFetches();
+    apiRetries = {fgi:0, dom:0, perf:0, kline:0, heatmap:0};
 
     // Reset state
     lastPrice = 0; curPrice = 0; buyVol = 0; sellVol = 0; cvd = 0;
@@ -937,16 +958,15 @@ function switchSymbol(newSymbol) {
     // Update UI
     var sym = currentSymbol.replace('USDT', '');
     var name = symbolNames[currentSymbol] || sym;
-    pairTag.innerHTML = '<span class="dot"></span>' + sym + ' / USDT · Binance';
-    App.el.brandName.innerHTML = '<span>' + name + '</span> Ticker';
+    pairTag.innerHTML = '<span class="dot"></span>' + App.escapeHTML(sym) + ' / USDT · Binance';
+    App.el.brandName.innerHTML = '<span>' + App.escapeHTML(name) + '</span> Ticker';
     App.el.logo.textContent = symbolLogos[currentSymbol] || sym[0];
     digitsWrap.innerHTML = '';
     pDec.textContent = '.--';
 
     // Reconnect WebSockets
-    if (mainWS) { mainWS.onclose = null; mainWS.close(); }
-    connect();
-    reconnectKlineWS();
+    mainMWS.reconnect();
+    klineMWS.reconnect();
 
     // Refetch data
     fetchKlines(activeTF);
@@ -958,38 +978,70 @@ function switchSymbol(newSymbol) {
 function init() {
     active = true;
     syncBtcConfig();
-    reconnectDelay = 1000;
     lastWSMessage = Date.now();
-    apiRetries = {fgi:0, dom:0, oi:0, perf:0};
+    apiRetries = {fgi:0, dom:0, perf:0, kline:0, heatmap:0};
+    fetchController = new AbortController();
+
+    // Attach document-level listeners (removed in destroy)
+    document.addEventListener('mousemove', onDocMouseMove);
+    document.addEventListener('mouseup', onDocMouseUp);
+    document.addEventListener('fullscreenchange', onDocFullscreenChange);
+    document.addEventListener('visibilitychange', onDocVisibilityChange);
+
+    initMainMWS();
+    initKlineMWS();
     if (!symbolNames[currentSymbol]) currentSymbol = btcConfig.defaultSymbol || 'BTCUSDT';
 
     // Update branding for current symbol
     var sym = currentSymbol.replace('USDT', '');
     var name = symbolNames[currentSymbol] || sym;
     App.el.logo.textContent = symbolLogos[currentSymbol] || sym[0];
-    App.el.brandName.innerHTML = '<span>' + name + '</span> Ticker';
-    pairTag.innerHTML = '<span class="dot"></span>' + sym + ' / USDT · Binance';
+    App.el.brandName.innerHTML = '<span>' + App.escapeHTML(name) + '</span> Ticker';
+    pairTag.innerHTML = '<span class="dot"></span>' + App.escapeHTML(sym) + ' / USDT · Binance';
 
     document.querySelectorAll('.chart-tab').forEach(function(t) {
-        t.classList.toggle('active', t.dataset.tf === activeTF);
+        var isActive = t.dataset.tf === activeTF;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
     document.querySelectorAll('.chart-type-btn').forEach(function(b) {
-        b.classList.toggle('active', b.dataset.type === chartMode);
+        var isActive = b.dataset.type === chartMode;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
     document.querySelectorAll('.ind-btn').forEach(function(b) {
         var ind = b.dataset.ind;
-        b.classList.toggle('active', !!indicators[ind]);
+        var isActive = !!indicators[ind];
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
     chartWrap.classList.toggle('with-rsi', !!indicators.rsi);
     renderAlertInputs();
     renderAlertHistory();
 
+    // Loading placeholders
+    App.setLive(true, 'Connecting\u2026');
+    sHigh.textContent = '--'; sLow.textContent = '--';
+    sTrades.textContent = '--'; sTps.textContent = '--';
+    sSpread.textContent = '--'; sDom.textContent = '--';
+    fgiText.textContent = '--';
+    perf7d.textContent = '--'; perf30d.textContent = '--'; perfYtd.textContent = '--';
+
+    // Restore cached data for instant display
+    var cached = getPref('btcCache', null);
+    if (cached && cached.symbol === currentSymbol && cached.price && Date.now() - (cached.ts || 0) < 3600000) {
+        updateDigits(cached.price);
+        pDec.textContent = '.' + cached.price.toFixed(2).split('.')[1];
+        if (cached.high24) sHigh.textContent = '$' + App.fmtI(cached.high24);
+        if (cached.low24) sLow.textContent = '$' + App.fmtI(cached.low24);
+    }
+
     // Fetch initial data
     fetchKlines(activeTF);
 
     // Connect websockets
-    connect();
-    connectKlineWS();
+    mainMWS.connect();
+    klineMWS.connect();
 
     // Fetch API data
     fetchFGI();
@@ -1004,8 +1056,8 @@ function init() {
         if (now - lastWSMessage > 30000) {
             console.warn('WebSocket appears stale, reconnecting...');
             App.setLive(false, 'Reconnecting');
-            if (mainWS) mainWS.close();
-            if (klineWS) klineWS.close();
+            mainMWS.reconnect();
+            klineMWS.reconnect();
         }
     }, refreshConfig.wsHealthMs || 15000));
 
@@ -1042,24 +1094,46 @@ function init() {
     // Initial chart draw
     scheduleRedraw();
 
+    // Reconnect on network recovery
+    onOnlineCb = function() {
+        if (!active) return;
+        mainMWS.reconnect();
+        klineMWS.reconnect();
+        fetchKlines(activeTF);
+        fetchFGI();
+        fetchDominance();
+        fetchPerformance();
+        fetchHeatmap();
+    };
+    App.onOnline(onOnlineCb);
+
     // Set live badge
     App.setLive(false, 'Connecting');
 }
 
-window.addEventListener('btct:config-updated', function() {
-    syncBtcConfig();
-});
 
 function destroy() {
     active = false;
 
+    // Abort in-flight fetches
+    if (fetchController) { fetchController.abort(); fetchController = null; }
+
     // Close websockets
-    if (mainWS) { mainWS.onclose = null; mainWS.close(); mainWS = null; }
-    if (klineWS) { klineWS.onclose = null; klineWS.close(); klineWS = null; }
+    if (mainMWS) mainMWS.disconnect();
+    if (klineMWS) klineMWS.disconnect();
 
     // Clear intervals
     intervals.forEach(clearInterval);
     intervals = [];
+
+    // Remove document-level listeners
+    document.removeEventListener('mousemove', onDocMouseMove);
+    document.removeEventListener('mouseup', onDocMouseUp);
+    document.removeEventListener('fullscreenchange', onDocFullscreenChange);
+    document.removeEventListener('visibilitychange', onDocVisibilityChange);
+
+    // Unsubscribe online recovery callback
+    if (onOnlineCb) { App.offOnline(onOnlineCb); onOnlineCb = null; }
 
     // Update live badge
     App.setLive(false, 'Offline');
@@ -1075,7 +1149,8 @@ App.registerDashboard('btc', {
     logoGradient: 'linear-gradient(135deg,#f7931a,#f5c842)',
     containerId: 'btcDash',
     init: init,
-    destroy: destroy
+    destroy: destroy,
+    syncConfig: syncBtcConfig
 });
 
 })();

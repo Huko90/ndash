@@ -1,6 +1,6 @@
 /* BTC DASHBOARD */
-.main{display:none;position:relative;flex-direction:column;justify-content:space-between;gap:clamp(2px,0.5vh,6px);overflow:hidden;flex:1;min-height:0}
-.main.active{display:flex}
+.main{display:flex;position:absolute;inset:0;flex-direction:column;justify-content:space-between;gap:clamp(2px,0.5vh,6px);overflow:hidden;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0.25s ease;contain:layout style paint}
+.main.active{position:relative;opacity:1;visibility:visible;pointer-events:auto;flex:1;min-height:0}
 .main::before{content:'';position:absolute;inset:0;background:url('../btcwallpaper.jpg') center center / cover no-repeat;opacity:var(--btc-image-opacity);pointer-events:none}
 .main::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,7,11,0.36),rgba(6,7,11,0.48));pointer-events:none}
 .main>*{position:relative;z-index:2;flex-shrink:1;min-height:0}
@@ -20,7 +20,7 @@
 .price-dec{font-family:'JetBrains Mono',monospace;font-size:clamp(18px,5.25vmin,66px);font-weight:400;color:rgba(245,200,66,0.4);line-height:1;transition:color .15s}
 .price-flash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:0;height:0;border-radius:50%;pointer-events:none;opacity:0}
 .price-flash.go{animation:ripple .8s ease-out}
-@keyframes ripple{0%{width:0;height:0;opacity:.25}100%{width:500px;height:500px;opacity:0}}
+@keyframes ripple{0%{width:0;height:0;opacity:.35}100%{width:500px;height:500px;opacity:0}}
 /* Change */
 .change-row{display:flex;justify-content:center;align-items:center;gap:clamp(5px,1vw,12px);margin-top:clamp(2px,0.4vh,6px)}
 .change-pill{display:inline-flex;align-items:center;gap:clamp(2px,0.4vw,5px);padding:clamp(2px,0.4vh,5px) clamp(6px,1vw,16px);border-radius:100px;font-size:clamp(9px,1.6vmin,14px);font-weight:700;transition:all .3s}
@@ -39,7 +39,8 @@
 .alert-history{display:flex;justify-content:center;align-items:center;gap:clamp(4px,0.6vw,8px);min-height:clamp(14px,2vh,24px);font-family:'JetBrains Mono',monospace;font-size:clamp(7px,1.1vmin,10px);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* STATS */
 .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border-radius:clamp(4px,0.7vmin,10px);overflow:hidden;flex-shrink:1}
-.stat-card{background:var(--bg);padding:clamp(3px,0.6vh,10px) clamp(2px,0.4vw,8px);text-align:center}
+.stat-card{background:var(--bg);padding:clamp(3px,0.6vh,10px) clamp(2px,0.4vw,8px);text-align:center;transition:all .2s ease;contain:layout style}
+.stat-card:hover{background:rgba(255,255,255,0.03);transform:translateY(-1px)}
 .s-label{font-size:clamp(6px,1vmin,9px);text-transform:uppercase;letter-spacing:1px;color:var(--dim);font-weight:600;margin-bottom:clamp(2px,0.5vh,6px)}
 .s-value{font-family:'JetBrains Mono',monospace;font-size:clamp(9px,1.6vmin,15px);font-weight:600;color:var(--hi);transition:color .3s}
 .s-sub{font-size:clamp(7px,1.1vmin,10px);color:var(--dim);margin-top:clamp(1px,0.3vh,3px)}
@@ -116,7 +117,7 @@
 .halving-val{font-family:'JetBrains Mono',monospace;font-size:clamp(7px,1.2vmin,11px);color:var(--gold);font-weight:500;min-width:clamp(50px,10vw,95px);text-align:right}
 /* HEATMAP */
 .heatmap{display:flex;gap:clamp(2px,0.3vw,4px);padding:clamp(2px,0.5vh,8px) 0;flex-shrink:1}
-.hm-item{flex:1;padding:clamp(4px,0.8vh,12px) clamp(2px,0.3vw,6px);border-radius:clamp(4px,0.6vmin,8px);text-align:center;transition:transform .2s}
+.hm-item{flex:1;padding:clamp(4px,0.8vh,12px) clamp(2px,0.3vw,6px);border-radius:clamp(4px,0.6vmin,8px);text-align:center;transition:transform .2s,background .5s ease;contain:layout style}
 .hm-item:hover{transform:scale(1.03);cursor:pointer}
 .hm-item.active{outline:2px solid var(--gold);outline-offset:-2px}
 .hm-symbol{font-size:clamp(8px,1.4vmin,13px);font-weight:700;letter-spacing:.3px;color:rgba(255,255,255,0.9);text-shadow:0 1px 2px rgba(0,0,0,0.5)}

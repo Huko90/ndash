@@ -1,0 +1,13 @@
+{
+  "name": "nDash",
+  "short_name": "nDash",
+  "description": "Real-time crypto, weather, and PC monitoring dashboard",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#06070b",
+  "theme_color": "#06070b",
+  "orientation": "any",
+  "icons": [
+    { "src": "build/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

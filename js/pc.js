@@ -61,6 +61,7 @@ function applyTempText(node, temp) {
     node.classList.toggle('triple', isNum && Math.abs(temp) >= 100);
 }
 
+// Keep in sync with .pc-vert-scale gradient in pc.css
 function pcTempColor(t) {
     if (typeof t !== 'number') return 'gray';
     if (t <= 30) return 'dodgerblue';
@@ -109,8 +110,11 @@ function parsePCData(data) {
 
     applyTempText(pcCpuTemp, cpuT);
     applyTempText(pcGpuTemp, gpuT);
-    pcCpuTemp.style.color = pcTempColor(cpuT);
-    pcGpuTemp.style.color = pcTempColor(gpuT);
+    var cpuColor = pcTempColor(cpuT), gpuColor = pcTempColor(gpuT);
+    pcCpuTemp.style.color = cpuColor;
+    pcGpuTemp.style.color = gpuColor;
+    pcCpuTemp.style.textShadow = '0 0 20px ' + cpuColor + ', 0 0 50px ' + cpuColor;
+    pcGpuTemp.style.textShadow = '0 0 20px ' + gpuColor + ', 0 0 50px ' + gpuColor;
     if (gpuHot !== null) {
         pcGpuHotspot.innerHTML = '<span style="color:#f5e6a3">Hotspot </span><span style="color:' + pcTempColor(gpuHot) + '">' + gpuHot + '°</span>';
     } else {
@@ -140,11 +144,15 @@ function parsePCData(data) {
     updateTempScale(pcGpuMarker, gpuT);
     App.setSourceStatus('pc', true);
     App.touchSection('pc');
+    if (active) App.setTitle('\ud83d\udda5 CPU ' + cpuT + '\u00b0 GPU ' + gpuT + '\u00b0');
+
+    // Cache PC data for instant display on next load
+    App.setSetting('pcCache', {cpuT: cpuT, gpuT: gpuT, cpuL: cpuL, gpuL: gpuL, ts: Date.now()});
 }
 
 function fetchPCData() {
-    if (document.hidden) return;
-    fetch(pcEndpoint, {cache:'no-store'})
+    if (document.hidden) return Promise.resolve();
+    return fetch(pcEndpoint, {cache:'no-store'})
     .then(function(r) { return r.json(); })
     .then(function(d) { parsePCData(d); })
     .catch(function() {
@@ -157,28 +165,57 @@ function fetchPCData() {
 }
 
 // === INIT / DESTROY ===
+var pollTimer = null;
+function schedulePoll() {
+    if (!active) return;
+    pollTimer = setTimeout(function() {
+        pollTimer = null;
+        fetchPCData().then(schedulePoll).catch(schedulePoll);
+    }, pcPollMs);
+}
+
 function init() {
     active = true;
     syncPcConfig();
 
-    fetchPCData();
-    intervals.push(setInterval(fetchPCData, pcPollMs));
+    // Restore cached PC data for instant display (< 5 min old)
+    var cached = App.getSetting('pcCache', null);
+    if (cached && cached.ts && Date.now() - cached.ts < 300000) {
+        applyTempText(pcCpuTemp, cached.cpuT);
+        applyTempText(pcGpuTemp, cached.gpuT);
+        if (typeof cached.cpuT === 'number') {
+            var cc = pcTempColor(cached.cpuT);
+            pcCpuTemp.style.color = cc;
+            pcCpuTemp.style.textShadow = '0 0 20px ' + cc + ', 0 0 50px ' + cc;
+            updateTempScale(pcCpuMarker, cached.cpuT);
+        }
+        if (typeof cached.gpuT === 'number') {
+            var gc = pcTempColor(cached.gpuT);
+            pcGpuTemp.style.color = gc;
+            pcGpuTemp.style.textShadow = '0 0 20px ' + gc + ', 0 0 50px ' + gc;
+            updateTempScale(pcGpuMarker, cached.gpuT);
+        }
+        pcStatus.textContent = 'PC CONNECTING\u2026';
+        pcStatus.className = 'pc-status';
+    }
 
+    fetchPCData().then(schedulePoll).catch(schedulePoll);
+
+    document.addEventListener('visibilitychange', onDocVisibilityChange);
     App.setLive(true, 'Polling');
 }
 
-window.addEventListener('btct:config-updated', function() {
-    syncPcConfig();
-});
-document.addEventListener('visibilitychange', function() {
+var onDocVisibilityChange = function() {
     if (!active || document.hidden) return;
     fetchPCData();
-});
+};
 
 function destroy() {
     active = false;
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
     intervals.forEach(clearInterval);
     intervals = [];
+    document.removeEventListener('visibilitychange', onDocVisibilityChange);
 }
 
 // === REGISTER ===
@@ -191,7 +228,8 @@ App.registerDashboard('pc', {
     logoGradient: 'linear-gradient(135deg,#10b981,#06b6d4)',
     containerId: 'pcDash',
     init: init,
-    destroy: destroy
+    destroy: destroy,
+    syncConfig: syncPcConfig
 });
 
 })();

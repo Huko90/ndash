@@ -10,7 +10,9 @@ from urllib.error import URLError, HTTPError
 from urllib.parse import urlparse, parse_qs, urlencode, quote
 
 PORT = 8888
-DIRECTORY = "/home/niko/btctracker"
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_SERVE_DIR = os.environ.get("BTCT_SERVE_DIR", "").strip()
+DIRECTORY = os.path.join(_BASE_DIR, _SERVE_DIR) if _SERVE_DIR else _BASE_DIR
 PC_ENDPOINT = os.environ.get("BTCT_PC_ENDPOINT", "http://192.168.0.118:8085/data.json")
 STOCKS_API_KEY = os.environ.get("BTCT_STOCKS_API_KEY", "").strip()
 STOCKS_API_BASE = os.environ.get("BTCT_STOCKS_API_BASE", "https://api.polygon.io").rstrip("/")
@@ -270,6 +272,26 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception as exc:
             self._mark_api("stocks", False, exc)
             self._json_error(500, "stocks_proxy_error", str(exc))
+
+    CSP = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "connect-src 'self' wss://stream.binance.com:9443 https://api.binance.com "
+            "https://api.alternative.me https://api.coingecko.com "
+            "https://api.open-meteo.com https://nominatim.openstreetmap.org "
+            "https://api.polygon.io; "
+        "img-src 'self' data:; "
+        "worker-src 'self'; "
+        "manifest-src 'self'"
+    )
+
+    def end_headers(self):
+        path = urlparse(self.path).path
+        if path.endswith('.html') or path.endswith('/') or path == '/' or not '.' in path.split('/')[-1]:
+            self.send_header("Content-Security-Policy", self.CSP)
+        super().end_headers()
 
     def log_message(self, format, *args):
         pass  # Suppress logging

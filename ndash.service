@@ -9,6 +9,7 @@ WorkingDirectory=/home/niko/btctracker
 Environment=BTCT_PC_ENDPOINT=http://192.168.0.118:8085/data.json
 Environment=BTCT_STOCKS_API_KEY=YOUR_POLYGON_API_KEY
 Environment=BTCT_ALLOW_STOCKS_KEY_QUERY=0
+Environment=BTCT_SERVE_DIR=dist
 ExecStart=/usr/bin/python3 /home/niko/btctracker/serve.py
 Restart=always
 RestartSec=5

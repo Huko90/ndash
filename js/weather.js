@@ -14,6 +14,7 @@ var weatherApiBase = 'https://api.open-meteo.com/v1/forecast';
 var weatherApiFallbackBases = [];
 var reverseGeoBase = 'https://nominatim.openstreetmap.org/reverse';
 var weatherRefreshMs = 600000;
+var prevTemp = null;
 
 // === ELEMENT REFS ===
 var weatherLocation = $('weatherLocation');
@@ -103,6 +104,19 @@ function tempColor(temp) {
     return '#8b5cf6';
 }
 
+function animateValue(el, from, to, suffix, durationMs) {
+    if (from === to) { el.textContent = to + (suffix || ''); return; }
+    var start = performance.now();
+    var dur = durationMs || 400;
+    function step(now) {
+        var t = Math.min((now - start) / dur, 1);
+        t = t * (2 - t); // ease-out
+        el.textContent = Math.round(from + (to - from) * t) + (suffix || '');
+        if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+
 function formatTime(isoStr) {
     var d = new Date(isoStr);
     return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
@@ -121,7 +135,7 @@ function fetchLocationName(lat, lon) {
     .then(function(data) {
         var city = data.address.city || data.address.town || data.address.village || data.address.municipality || 'Unknown';
         var country = data.address.country_code ? data.address.country_code.toUpperCase() : '';
-        weatherLocation.innerHTML = '<span class="dot"></span>' + city + (country ? ', ' + country : '');
+        weatherLocation.innerHTML = '<span class="dot"></span>' + App.escapeHTML(city) + (country ? ', ' + App.escapeHTML(country) : '');
     }).catch(function() {
         weatherLocation.innerHTML = '<span class="dot"></span>' + lat.toFixed(2) + '°, ' + lon.toFixed(2) + '°';
     });
@@ -170,7 +184,12 @@ function fetchWeather() {
         var cur = data.current;
         var info = getWeatherInfo(cur.weather_code);
         var curTemp = Math.round(cur.temperature_2m);
-        weatherTemp.textContent = curTemp;
+        if (prevTemp !== null && prevTemp !== curTemp) {
+            animateValue(weatherTemp, prevTemp, curTemp, '');
+        } else {
+            weatherTemp.textContent = curTemp;
+        }
+        prevTemp = curTemp;
         weatherTemp.style.color = tempColor(curTemp);
         weatherIcon.textContent = info.icon;
         weatherDesc.textContent = info.desc;
@@ -182,6 +201,7 @@ function fetchWeather() {
         wsPressure.textContent = Math.round(cur.surface_pressure) + ' hPa';
         var vis = cur.weather_code <= 3 ? '10+ km' : cur.weather_code <= 48 ? '2-5 km' : '<2 km';
         wsVisibility.textContent = vis;
+        if (active) App.setTitle(info.icon + ' ' + curTemp + '\u00b0C');
 
         // Daily data (today)
         var daily = data.daily;
@@ -255,6 +275,14 @@ function fetchWeather() {
         App.setSourceStatus('weather', true);
         App.touchSection('weather');
         App.setLive(true, 'Updated');
+
+        // Cache current weather for instant display on next load
+        App.setSetting('weatherCache', {
+            curTemp: curTemp, feelsTemp: feelsTemp, icon: info.icon, desc: info.desc,
+            humidity: cur.relative_humidity_2m, wind: Math.round(cur.wind_speed_10m),
+            windDir: windDirection(cur.wind_direction_10m), pressure: Math.round(cur.surface_pressure),
+            lat: weatherLat, lon: weatherLon, ts: Date.now()
+        });
     }).catch(function(e) {
         App.setSourceStatus('weather', false);
         console.error('Weather fetch error:', e);
@@ -334,7 +362,32 @@ function init() {
     weatherLat = typeof weatherConfig.lat === 'number' ? weatherConfig.lat : defaultWeather.lat;
     weatherLon = typeof weatherConfig.lon === 'number' ? weatherConfig.lon : defaultWeather.lon;
     var weatherName = weatherConfig.name || defaultWeather.name;
-    weatherLocation.innerHTML = '<span class="dot"></span>' + weatherName;
+    weatherLocation.innerHTML = '<span class="dot"></span>' + App.escapeHTML(weatherName);
+
+    // Loading placeholders
+    weatherTemp.textContent = '--';
+    weatherIcon.textContent = '';
+    weatherDesc.textContent = 'Loading\u2026';
+    weatherFeels.textContent = '';
+    hourlyScroll.innerHTML = '<span class="loading-text">Loading\u2026</span>';
+    forecastGrid.innerHTML = '<span class="loading-text">Loading\u2026</span>';
+
+    // Restore cached weather for instant display
+    var cached = App.getSetting('weatherCache', null);
+    if (cached && cached.ts && Date.now() - cached.ts < 3600000 &&
+        Math.abs((cached.lat || 0) - weatherLat) < 0.01 && Math.abs((cached.lon || 0) - weatherLon) < 0.01) {
+        weatherTemp.textContent = cached.curTemp;
+        weatherTemp.style.color = tempColor(cached.curTemp);
+        prevTemp = cached.curTemp;
+        weatherIcon.textContent = cached.icon || '';
+        weatherDesc.textContent = cached.desc || '';
+        var ft = cached.feelsTemp;
+        weatherFeels.innerHTML = 'Feels like <span style="color:' + tempColor(ft) + '">' + ft + '°C</span>';
+        if (cached.humidity) wsHumidity.textContent = cached.humidity + '%';
+        if (cached.wind) wsWind.textContent = cached.wind + ' km/h';
+        if (cached.windDir) wsWindDir.textContent = cached.windDir;
+        if (cached.pressure) wsPressure.textContent = cached.pressure + ' hPa';
+    }
 
     fetchWeather();
 
@@ -343,22 +396,21 @@ function init() {
         if (!document.hidden) fetchWeather();
     }, weatherRefreshMs));
 
+    document.addEventListener('visibilitychange', onDocVisibilityChange);
     App.setLive(true, 'Weather');
 }
+
+var onDocVisibilityChange = function() {
+    if (!active || document.hidden) return;
+    fetchWeather();
+};
 
 function destroy() {
     active = false;
     intervals.forEach(clearInterval);
     intervals = [];
+    document.removeEventListener('visibilitychange', onDocVisibilityChange);
 }
-
-window.addEventListener('btct:config-updated', function() {
-    syncWeatherConfig();
-});
-document.addEventListener('visibilitychange', function() {
-    if (!active || document.hidden) return;
-    fetchWeather();
-});
 
 // === REGISTER ===
 App.registerDashboard('weather', {
@@ -370,7 +422,8 @@ App.registerDashboard('weather', {
     logoGradient: 'linear-gradient(135deg,#3b82f6,#06b6d4)',
     containerId: 'weatherDash',
     init: init,
-    destroy: destroy
+    destroy: destroy,
+    syncConfig: syncWeatherConfig
 });
 
 })();

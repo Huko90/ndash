@@ -3,28 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' wss://stream.binance.com:9443 https://api.binance.com https://api.alternative.me https://api.coingecko.com https://api.open-meteo.com https://nominatim.openstreetmap.org https://api.polygon.io; img-src 'self' data:; worker-src 'self'; manifest-src 'self'">
 <title>nDash</title>
+<link rel="icon" id="favicon">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="build/icon.png">
+<meta name="theme-color" content="#06070b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" as="style">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"></noscript>
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/btc.css">
 <link rel="stylesheet" href="css/weather.css">
 <link rel="stylesheet" href="css/pc.css">
 </head>
 <body>
+<a href="#app" class="skip-nav">Skip to content</a>
 <canvas id="particles"></canvas>
 <div class="orb orb-1" id="orb1"></div>
 <div class="orb orb-2" id="orb2"></div>
 <div class="alert-flash" id="alertFlash"></div>
 <div class="app" id="app">
 <nav class="nav">
-  <div class="brand"><div class="logo" id="logo">₿</div><div><div class="brand-name" id="brandName"><span>Bitcoin</span> Ticker</div><div class="brand-sub" id="brandSub">Real-Time Market Data</div></div><button class="brand-fs-btn" id="brandFsBtn" title="Toggle Fullscreen">⛶</button><div class="nav-stamps" id="navStamps"><span class="nav-stamp" id="btcStamp">BTC --:--:--</span><span class="nav-stamp" id="weatherStamp">WTH --:--:--</span><span class="nav-stamp" id="pcStamp">PC --:--:--</span></div></div>
+  <div class="brand"><div class="logo" id="logo">₿</div><div><div class="brand-name" id="brandName"><span>Bitcoin</span> Ticker</div><div class="brand-sub" id="brandSub">Real-Time Market Data</div></div><button class="brand-fs-btn" id="brandFsBtn" title="Toggle Fullscreen" aria-label="Toggle fullscreen">⛶</button><div class="nav-stamps" id="navStamps"><span class="nav-stamp" id="btcStamp" aria-label="BTC data status">BTC --:--:--</span><span class="nav-stamp" id="weatherStamp" aria-label="Weather data status">WTH --:--:--</span><span class="nav-stamp" id="pcStamp" aria-label="PC data status">PC --:--:--</span></div></div>
   <div class="nav-r">
     <div class="mode-toggle" id="modeToggle"></div>
     <div class="clock" id="clock">--:--:--</div>
-    <div class="live-badge" id="liveBadge"><div class="live-dot"></div><span id="liveText">Connecting</span></div>
-    <button class="settings-btn" id="settingsBtn" title="Settings">⚙</button>
+    <div class="live-badge" id="liveBadge" aria-live="assertive" role="status"><div class="live-dot"></div><span id="liveText">Connecting</span></div>
+    <button class="settings-btn" id="settingsBtn" title="Settings" aria-label="Open settings">⚙</button>
   </div>
 </nav>
-<div class="settings-drawer" id="settingsDrawer">
+<div class="settings-drawer" id="settingsDrawer" role="dialog" aria-label="Settings">
   <div class="settings-main-panel" id="settingsMainPanel">
     <div class="settings-head settings-main-head">
       <span class="settings-main-title">Settings</span>
@@ -124,7 +133,7 @@
 <div class="main" id="btcDash">
   <div class="price-section">
     <div class="pair-tag" id="pairTag"><span class="dot"></span>BTC / USDT · Binance</div>
-    <div class="price-display">
+    <div class="price-display" aria-live="polite" aria-atomic="true">
       <span class="dollar">$</span>
       <div class="digits-wrap" id="digitsWrap"></div>
       <span class="price-dec" id="pDec">.--</span>
@@ -136,8 +145,8 @@
     </div>
     <div class="alert-panel" id="alertPanel">
       <div class="alert-controls">
-        <input class="alert-input" id="alertHighInput" type="number" step="0.01" placeholder="High alert">
-        <input class="alert-input" id="alertLowInput" type="number" step="0.01" placeholder="Low alert">
+        <input class="alert-input" id="alertHighInput" type="number" step="0.01" placeholder="High alert" aria-label="High price alert">
+        <input class="alert-input" id="alertLowInput" type="number" step="0.01" placeholder="Low alert" aria-label="Low price alert">
         <button class="alert-btn" id="setAlertBtn">Set</button>
         <button class="alert-btn alt" id="clearAlertBtn">Clear</button>
         <button class="alert-btn alt" id="notifyPermBtn">Notify</button>
@@ -166,25 +175,25 @@
     <div class="chart-header">
       <div class="chart-controls">
         <div class="chart-type-toggle">
-          <div class="chart-type-btn active" data-type="candle">Candle</div>
-          <div class="chart-type-btn" data-type="line">Line</div>
+          <div class="chart-type-btn active" data-type="candle" role="button" tabindex="0" aria-pressed="true">Candle</div>
+          <div class="chart-type-btn" data-type="line" role="button" tabindex="0" aria-pressed="false">Line</div>
         </div>
         <div class="chart-tabs">
-          <div class="chart-tab active" data-tf="1m">1m</div>
-          <div class="chart-tab" data-tf="5m">5m</div>
-          <div class="chart-tab" data-tf="15m">15m</div>
-          <div class="chart-tab" data-tf="1h">1h</div>
-          <div class="chart-tab" data-tf="4h">4h</div>
-          <div class="chart-tab" data-tf="1d">1D</div>
+          <div class="chart-tab active" data-tf="1m" role="button" tabindex="0" aria-pressed="true">1m</div>
+          <div class="chart-tab" data-tf="5m" role="button" tabindex="0" aria-pressed="false">5m</div>
+          <div class="chart-tab" data-tf="15m" role="button" tabindex="0" aria-pressed="false">15m</div>
+          <div class="chart-tab" data-tf="1h" role="button" tabindex="0" aria-pressed="false">1h</div>
+          <div class="chart-tab" data-tf="4h" role="button" tabindex="0" aria-pressed="false">4h</div>
+          <div class="chart-tab" data-tf="1d" role="button" tabindex="0" aria-pressed="false">1D</div>
         </div>
         <div class="indicator-toggle">
-          <div class="ind-btn" data-ind="sma">SMA</div>
-          <div class="ind-btn" data-ind="ema">EMA</div>
-          <div class="ind-btn" data-ind="boll">BOLL</div>
-          <div class="ind-btn" data-ind="rsi">RSI</div>
+          <div class="ind-btn" data-ind="sma" role="button" tabindex="0" aria-pressed="false">SMA</div>
+          <div class="ind-btn" data-ind="ema" role="button" tabindex="0" aria-pressed="false">EMA</div>
+          <div class="ind-btn" data-ind="boll" role="button" tabindex="0" aria-pressed="false">BOLL</div>
+          <div class="ind-btn" data-ind="rsi" role="button" tabindex="0" aria-pressed="false">RSI</div>
         </div>
       </div>
-      <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">⛶</button>
+      <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen" aria-label="Toggle chart fullscreen">⛶</button>
     </div>
     <div class="chart-wrap" id="chartWrap"><canvas id="chart"></canvas><div class="chart-overlay" id="overlay"><div class="crosshair-v" id="crossV"></div><div class="crosshair-h" id="crossH"></div><div class="chart-tooltip" id="tip"></div></div></div>
   </div>
@@ -198,7 +207,7 @@
 <div class="weather-dash" id="weatherDash">
   <div class="weather-current">
     <div class="weather-location" id="weatherLocation"><span class="dot"></span>Loading location...</div>
-    <div class="weather-temp-display">
+    <div class="weather-temp-display" aria-live="polite" aria-atomic="true">
       <span class="weather-temp-num" id="weatherTemp">--</span>
       <span class="weather-temp-unit">°C</span>
     </div>
@@ -266,7 +275,7 @@
 </div>
 <!-- PC DASHBOARD -->
 <div class="pc-dash" id="pcDash">
-  <div class="pc-status offline" id="pcStatus">PC OFFLINE</div>
+  <div class="pc-status offline" id="pcStatus" aria-live="polite">PC OFFLINE</div>
   <div class="pc-temps">
     <div class="pc-temp-card">
       <div class="pc-vert-scale" id="pcCpuScale">
@@ -274,13 +283,13 @@
       </div>
       <div class="pc-temp-content">
         <div class="pc-temp-label">CPU Temp</div>
-        <div class="pc-temp-val cpu" id="pcCpuTemp">--°</div>
+        <div class="pc-temp-val cpu" id="pcCpuTemp" aria-live="polite" aria-label="CPU Temperature">--°</div>
       </div>
     </div>
     <div class="pc-temp-card">
       <div class="pc-temp-content">
         <div class="pc-temp-label">GPU Temp</div>
-        <div class="pc-temp-val gpu" id="pcGpuTemp">--°</div>
+        <div class="pc-temp-val gpu" id="pcGpuTemp" aria-live="polite" aria-label="GPU Temperature">--°</div>
         <div class="pc-temp-hotspot" id="pcGpuHotspot"></div>
       </div>
       <div class="pc-vert-scale" id="pcGpuScale">
@@ -295,14 +304,13 @@
 </div>
 <script src="js/config-base.js"></script>
 <script src="js/config.js"></script>
+<script src="js/lib/ws.js"></script>
 <script src="js/app.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/lib/indicators.js"></script>
 <script src="js/btc.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/pc.js"></script>
-<script>
-(window.BTCT_CONFIG_READY || Promise.resolve())
-  .catch(function(){})
-  .then(function(){ App.start('btc'); });
-</script>
+<script src="js/init.js"></script>
 </body>
 </html>

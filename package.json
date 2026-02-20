@@ -10,7 +10,10 @@
   "scripts": {
     "start": "electron .",
     "wizard": "BTCT_FORCE_WIZARD=1 electron .",
-    "lint:syntax": "node -e \"['js/config-base.js','js/config.js','js/app.js','js/btc.js','js/stocks.js','js/weather.js','js/pc.js','desktop/main.js','desktop/preload.js','desktop/local-server.js','desktop/config-store.js'].forEach(f=>new Function(require('fs').readFileSync(f,'utf8'))); console.log('ok')\"",
+    "build": "node scripts/build.js",
+    "lint:syntax": "node -e \"['js/config-base.js','js/config.js','js/lib/ws.js','js/app.js','js/settings.js','js/lib/indicators.js','js/btc.js','js/weather.js','js/pc.js','js/init.js','js/stocks.js','desktop/main.js','desktop/updater.js','desktop/preload.js','desktop/local-server.js','desktop/config-store.js'].forEach(f=>new Function(require('fs').readFileSync(f,'utf8'))); console.log('ok')\"",
+    "test": "node --test tests/*.test.js",
+    "test:all": "npm run lint:syntax && npm test",
     "test:smoke": "node scripts/smoke.js",
     "test:updater-smoke": "node scripts/updater-smoke.js",
     "deps:audit": "npm audit --audit-level=moderate",

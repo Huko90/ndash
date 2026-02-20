@@ -58,6 +58,9 @@ function fetchDesktopOverrides() {
     });
 }
 
+// Expose utilities for app.js and other modules
+window.BTCT_UTILS = { isObj: isObj, deepMerge: deepMerge, clone: clone };
+
 var localOverrides = readLocalOverrides();
 window.BTCT_CONFIG = deepMerge(clone(baseConfig), localOverrides);
 window.BTCT_CONFIG_READY = fetchDesktopOverrides().then(function(desktopOverrides) {

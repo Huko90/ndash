@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, shell, clipboard, Tray, Menu, nativeImage, 
 const { autoUpdater } = require('electron-updater');
 const { ConfigStore, deepMerge } = require('./config-store');
 const { LocalServer } = require('./local-server');
+const updater = require('./updater');
 const baseRuntimeConfig = require('../js/config-base.js');
 
 let mainWindow = null;
@@ -12,15 +13,6 @@ let isQuitting = false;
 let configStore = null;
 let localServer = null;
 let serverState = null;
-let updateStatus = 'Updates: idle';
-let updateCheckTimer = null;
-let updateReadyInfo = null;
-let lastUpdateError = '';
-let lastUpdateCheckAt = 0;
-let lastUpdateAvailableVersion = '';
-let manualCheckPending = false;
-let manualErrorShown = false;
-let updateCounters = { checks: 0, ok: 0, errors: 0, downloads: 0, installedPrompts: 0 };
 
 function projectRoot() {
   return path.resolve(__dirname, '..');
@@ -177,14 +169,14 @@ function updateTrayMenu() {
     {
       label: 'Check for Updates',
       click: () => {
-        runUpdateCheck(true);
+        updater.runUpdateCheck(true);
       }
     },
     {
       label: 'Install Downloaded Update Now',
-      enabled: !!updateReadyInfo,
+      enabled: !!updater.getUpdateReadyInfo(),
       click: () => {
-        if (!updateReadyInfo) return;
+        if (!updater.getUpdateReadyInfo()) return;
         isQuitting = true;
         autoUpdater.quitAndInstall();
       }
@@ -192,11 +184,11 @@ function updateTrayMenu() {
     {
       label: 'Open Update Log',
       click: () => {
-        shell.showItemInFolder(updateLogPath());
+        shell.showItemInFolder(updater.updateLogPath());
       }
     },
     {
-      label: updateStatus,
+      label: updater.getState().status,
       enabled: false
     },
     { type: 'separator' },
@@ -209,248 +201,6 @@ function updateTrayMenu() {
     }
   ]);
   tray.setContextMenu(menu);
-}
-
-function setUpdateStatus(text) {
-  updateStatus = text;
-  if (tray) updateTrayMenu();
-}
-
-function updateLogPath() {
-  return path.join(app.getPath('userData'), 'update.log');
-}
-
-function logUpdateEvent(event, detail) {
-  const entry = {
-    ts: new Date().toISOString(),
-    event,
-    detail: detail || '',
-    version: app.getVersion()
-  };
-  const line = `${JSON.stringify(entry)}\n`;
-  try {
-    fs.mkdirSync(path.dirname(updateLogPath()), { recursive: true });
-    fs.appendFileSync(updateLogPath(), line, 'utf8');
-  } catch (_) {}
-}
-
-function lastRunVersionPath() {
-  return path.join(app.getPath('userData'), 'last-run-version.txt');
-}
-
-function maybeShowPostUpdateNotes() {
-  const current = app.getVersion();
-  let prev = '';
-  try {
-    prev = fs.existsSync(lastRunVersionPath()) ? fs.readFileSync(lastRunVersionPath(), 'utf8').trim() : '';
-  } catch (_) {}
-  if (prev && prev !== current) {
-    dialog.showMessageBox(mainWindow || null, {
-      type: 'info',
-      title: 'App Updated',
-      message: `nDash updated to ${current}.`,
-      detail: `Previous version: ${prev}`
-    }).catch(() => {});
-  }
-  try {
-    fs.mkdirSync(path.dirname(lastRunVersionPath()), { recursive: true });
-    fs.writeFileSync(lastRunVersionPath(), current, 'utf8');
-  } catch (_) {}
-}
-
-function runStartupSelfCheck() {
-  const cfg = configStore.get();
-  const warnings = [];
-  if (!cfg.pc || !/^https?:\/\//i.test(String(cfg.pc.endpoint || ''))) warnings.push('pc_endpoint_not_set');
-  if (!cfg.network || cfg.network.httpPort === cfg.network.httpsPort) warnings.push('invalid_ports');
-  if (warnings.length) {
-    logUpdateEvent('startup-warning', warnings.join(','));
-  }
-}
-
-function hasPackagedUpdateConfig() {
-  if (!app.isPackaged) return false;
-  try {
-    return fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'));
-  } catch (_) {
-    return false;
-  }
-}
-
-function githubFeedFromEnv() {
-  const owner = String(process.env.BTCT_GH_OWNER || '').trim();
-  const repo = String(process.env.BTCT_GH_REPO || '').trim();
-  if (!owner || !repo) return null;
-
-  const host = String(process.env.BTCT_GH_HOST || '').trim();
-  const isPrivate = String(process.env.BTCT_GH_PRIVATE || '').trim() === '1';
-  const cfg = { provider: 'github', owner, repo, private: isPrivate };
-  if (host) cfg.host = host;
-  return cfg;
-}
-
-function isAutoUpdateEnabled() {
-  if (!app.isPackaged) return false;
-  if (process.env.BTCT_DISABLE_AUTO_UPDATE === '1') return false;
-  if (String(process.env.BTCT_UPDATE_URL || '').trim()) return true;
-  if (githubFeedFromEnv()) return true;
-  return hasPackagedUpdateConfig();
-}
-
-async function runUpdateCheck(manual) {
-  if (!isAutoUpdateEnabled()) {
-    if (manual) {
-      await dialog.showMessageBox(mainWindow || null, {
-        type: 'info',
-        title: 'Updates',
-        message: 'Auto-update is not configured for this build.',
-        detail: 'Set BTCT_UPDATE_URL or BTCT_GH_OWNER/BTCT_GH_REPO, or ship with app-update.yml metadata.'
-      });
-    }
-    return;
-  }
-  try {
-    manualCheckPending = !!manual;
-    manualErrorShown = false;
-    lastUpdateCheckAt = Date.now();
-    updateCounters.checks += 1;
-    logUpdateEvent('check-start', manual ? 'manual' : 'auto');
-    setUpdateStatus('Updates: checking...');
-    await autoUpdater.checkForUpdates();
-  } catch (err) {
-    const msg = (err && err.message) ? err.message : String(err);
-    lastUpdateError = msg;
-    updateCounters.errors += 1;
-    logUpdateEvent('check-error', msg);
-    setUpdateStatus('Updates: error');
-    if (manual) {
-      manualErrorShown = true;
-      await dialog.showMessageBox(mainWindow || null, {
-        type: 'error',
-        title: 'Update Check Failed',
-        message: 'Could not check for updates.',
-        detail: msg
-      });
-    }
-    manualCheckPending = false;
-  }
-}
-
-function setupAutoUpdates() {
-  if (!isAutoUpdateEnabled()) {
-    setUpdateStatus('Updates: not configured');
-    return;
-  }
-
-  const updateBaseUrl = String(process.env.BTCT_UPDATE_URL || '').trim();
-  const githubFeed = githubFeedFromEnv();
-  const channel = String(process.env.BTCT_UPDATE_CHANNEL || 'latest').trim();
-  const prereleaseEnabled = process.env.BTCT_UPDATE_ALLOW_PRERELEASE === '1' || channel !== 'latest';
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.allowDowngrade = false;
-  autoUpdater.disableDifferentialDownload = true;
-  autoUpdater.allowPrerelease = prereleaseEnabled;
-  if (updateBaseUrl) {
-    autoUpdater.setFeedURL({ provider: 'generic', url: updateBaseUrl, channel });
-    setUpdateStatus('Updates: configured (generic)');
-    logUpdateEvent('feed', `generic ${updateBaseUrl} channel=${channel}`);
-  } else if (githubFeed) {
-    autoUpdater.setFeedURL(githubFeed);
-    setUpdateStatus('Updates: configured (github)');
-    logUpdateEvent('feed', `github ${githubFeed.owner}/${githubFeed.repo} prerelease=${prereleaseEnabled ? '1' : '0'}`);
-  } else if (hasPackagedUpdateConfig()) {
-    setUpdateStatus('Updates: configured (packaged)');
-    logUpdateEvent('feed', `packaged channel=${channel} prerelease=${prereleaseEnabled ? '1' : '0'}`);
-  } else {
-    setUpdateStatus('Updates: not configured');
-    return;
-  }
-
-  autoUpdater.on('checking-for-update', () => {
-    lastUpdateCheckAt = Date.now();
-    logUpdateEvent('checking');
-    setUpdateStatus('Updates: checking...');
-  });
-  autoUpdater.on('update-available', (info) => {
-    const nextVersion = info && info.version ? info.version : 'new version';
-    lastUpdateAvailableVersion = nextVersion;
-    updateCounters.ok += 1;
-    logUpdateEvent('update-available', nextVersion);
-    setUpdateStatus(`Updates: downloading ${nextVersion}`);
-    if (manualCheckPending) {
-      dialog.showMessageBox(mainWindow || null, {
-        type: 'info',
-        title: 'Update Found',
-        message: `Version ${nextVersion} found.`,
-        detail: 'Download started in background.'
-      }).catch(() => {});
-      manualCheckPending = false;
-    }
-  });
-  autoUpdater.on('update-not-available', () => {
-    logUpdateEvent('update-not-available');
-    updateCounters.ok += 1;
-    setUpdateStatus('Updates: up to date');
-    if (manualCheckPending) {
-      dialog.showMessageBox(mainWindow || null, {
-        type: 'info',
-        title: 'Updates',
-        message: 'You are up to date.',
-        detail: `Current version: ${app.getVersion()}`
-      }).catch(() => {});
-      manualCheckPending = false;
-    }
-  });
-  autoUpdater.on('download-progress', (p) => {
-    const pct = p && typeof p.percent === 'number' ? p.percent.toFixed(0) : '?';
-    setUpdateStatus(`Updates: downloading ${pct}%`);
-    logUpdateEvent('download-progress', `${pct}%`);
-  });
-  autoUpdater.on('error', (err) => {
-    const msg = err && err.message ? err.message : String(err);
-    lastUpdateError = msg;
-    logUpdateEvent('error', msg);
-    console.error('Auto-update error:', msg);
-    setUpdateStatus('Updates: error');
-    if (manualCheckPending && !manualErrorShown) {
-      manualErrorShown = true;
-      dialog.showMessageBox(mainWindow || null, {
-        type: 'error',
-        title: 'Update Error',
-        message: 'Update failed.',
-        detail: msg
-      }).catch(() => {});
-    }
-    manualCheckPending = false;
-  });
-  autoUpdater.on('update-downloaded', async (info) => {
-    const nextVersion = info && info.version ? info.version : 'new version';
-    updateReadyInfo = info || { version: nextVersion };
-    updateCounters.downloads += 1;
-    logUpdateEvent('update-downloaded', nextVersion);
-    setUpdateStatus(`Updates: ready (${nextVersion})`);
-    updateTrayMenu();
-    const res = await dialog.showMessageBox(mainWindow || null, {
-      type: 'question',
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1,
-      title: 'Update Ready',
-      message: `Version ${nextVersion} has been downloaded.`,
-      detail: 'Restart now to apply the update.'
-    });
-    if (res.response === 0) {
-      updateCounters.installedPrompts += 1;
-      isQuitting = true;
-      autoUpdater.quitAndInstall();
-    }
-    manualCheckPending = false;
-  });
-
-  runUpdateCheck(false);
-  if (updateCheckTimer) clearInterval(updateCheckTimer);
-  updateCheckTimer = setInterval(() => runUpdateCheck(false), 6 * 60 * 60 * 1000);
 }
 
 function applyRunModeSideEffects() {
@@ -536,6 +286,8 @@ async function testEndpoint(endpoint) {
   }
 }
 
+// Self-signed cert acceptance is intentional here — only applies to our own
+// local server URLs (localhost/LAN) to support HTTPS without a CA-signed cert.
 app.on('certificate-error', (event, webContents, url, _error, _cert, callback) => {
   if (looksLikeLocalServer(url)) {
     event.preventDefault();
@@ -550,9 +302,18 @@ app.whenReady().then(async () => {
   await startLocalServer();
   applyRunModeSideEffects();
   createMainWindow();
-  runStartupSelfCheck();
-  maybeShowPostUpdateNotes();
-  setupAutoUpdates();
+
+  updater.init({
+    getMainWindow: () => mainWindow,
+    userDataPath: app.getPath('userData'),
+    appVersion: app.getVersion(),
+    onTrayUpdate: updateTrayMenu,
+    setIsQuitting: (v) => { isQuitting = v; },
+    getConfigStore: () => configStore.get()
+  });
+  updater.runStartupSelfCheck();
+  updater.maybeShowPostUpdateNotes();
+  if (app.isPackaged) updater.setupAutoUpdates();
 
   app.on('activate', () => {
     if (!mainWindow) createMainWindow();
@@ -566,7 +327,7 @@ app.on('before-quit', () => {
 
 process.on('uncaughtException', (err) => {
   const msg = err && err.stack ? err.stack : String(err);
-  logUpdateEvent('uncaught-exception', msg);
+  updater.logUpdateEvent('uncaught-exception', msg);
   dialog.showMessageBox(mainWindow || null, {
     type: 'error',
     title: 'Unexpected Error',
@@ -577,7 +338,7 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason) => {
   const msg = reason && reason.stack ? reason.stack : String(reason);
-  logUpdateEvent('unhandled-rejection', msg);
+  updater.logUpdateEvent('unhandled-rejection', msg);
   dialog.showMessageBox(mainWindow || null, {
     type: 'error',
     title: 'Unhandled Rejection',
@@ -591,10 +352,7 @@ app.on('window-all-closed', async () => {
   if (mode !== 'background' && localServer) {
     await localServer.stop();
   }
-  if (updateCheckTimer) {
-    clearInterval(updateCheckTimer);
-    updateCheckTimer = null;
-  }
+  updater.clearCheckTimer();
   if (process.platform !== 'darwin' && mode !== 'background') app.quit();
 });
 
@@ -603,15 +361,7 @@ ipcMain.handle('app:get-state', async () => ({
   server: serverState,
   configPath: configStore.getFilePath(),
   appVersion: app.getVersion(),
-  updates: {
-    status: updateStatus,
-    readyVersion: updateReadyInfo && updateReadyInfo.version ? updateReadyInfo.version : '',
-    availableVersion: lastUpdateAvailableVersion,
-    lastError: lastUpdateError,
-    lastCheckAt: lastUpdateCheckAt,
-    logPath: updateLogPath(),
-    counters: updateCounters
-  }
+  updates: updater.getState()
 }));
 
 ipcMain.handle('wizard:test-endpoint', async (_evt, endpoint) => testEndpoint(endpoint));
@@ -684,6 +434,6 @@ ipcMain.handle('app:open-file', async (_evt, p) => {
 });
 
 ipcMain.handle('app:open-update-log', async () => {
-  await shell.showItemInFolder(updateLogPath());
-  return { ok: true, path: updateLogPath() };
+  await shell.showItemInFolder(updater.updateLogPath());
+  return { ok: true, path: updater.updateLogPath() };
 });
