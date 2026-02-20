@@ -2,6 +2,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -118,8 +119,13 @@ swSrc = swSrc.replace(
     /var SHELL_FILES = \[[\s\S]*?\];/,
     'var SHELL_FILES = ' + JSON.stringify(distShellFiles, null, 4) + ';'
 );
-// Bump cache version
-swSrc = swSrc.replace(/var CACHE_VERSION = '[^']+';/, "var CACHE_VERSION = 'ndash-dist-v1';");
+// Auto cache-bust: hash the minified bundles for a unique cache version
+var bundleHash = crypto.createHash('md5')
+    .update(fs.readFileSync(jsBundlePath))
+    .update(fs.readFileSync(cssBundlePath))
+    .update(fs.readFileSync(initPath))
+    .digest('hex').slice(0, 8);
+swSrc = swSrc.replace(/var CACHE_VERSION = '[^']+';/, "var CACHE_VERSION = 'ndash-" + bundleHash + "';");
 fs.writeFileSync(path.join(DIST, 'sw.js'), swSrc);
 
 // 6. Copy static assets

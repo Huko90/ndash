@@ -28,6 +28,9 @@ if [[ "$current_pkg_ver" != "$pkg_ver" ]]; then
   npm version "$pkg_ver" --no-git-tag-version
 fi
 
+# Auto cache-bust dev sw.js with new version
+sed -i "s/var CACHE_VERSION = 'ndash-[^']*';/var CACHE_VERSION = 'ndash-v${pkg_ver}';/" sw.js
+
 git add -A
 git commit -m "Release ${ver}" || true
 
