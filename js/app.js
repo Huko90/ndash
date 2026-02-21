@@ -336,9 +336,9 @@ var App = (function() {
         if (typeof theme.weatherImageOpacity === 'number') root.setProperty('--weather-image-opacity', String(theme.weatherImageOpacity));
         if (typeof theme.pcOverlayTop === 'number') root.setProperty('--pc-overlay-top', String(theme.pcOverlayTop));
         if (typeof theme.pcOverlayBottom === 'number') root.setProperty('--pc-overlay-bottom', String(theme.pcOverlayBottom));
-        if (typeof theme.btcWallpaper === 'string') root.setProperty('--btc-wallpaper', theme.btcWallpaper ? 'url("' + theme.btcWallpaper + '")' : '');
-        if (typeof theme.weatherWallpaper === 'string') root.setProperty('--weather-wallpaper', theme.weatherWallpaper ? 'url("' + theme.weatherWallpaper + '")' : '');
-        if (typeof theme.pcWallpaper === 'string') root.setProperty('--pc-wallpaper', theme.pcWallpaper ? 'url("' + theme.pcWallpaper + '")' : '');
+        if (typeof theme.btcWallpaper === 'string') { if (theme.btcWallpaper) root.setProperty('--btc-wallpaper', 'url("' + theme.btcWallpaper + '")'); else root.removeProperty('--btc-wallpaper'); }
+        if (typeof theme.weatherWallpaper === 'string') { if (theme.weatherWallpaper) root.setProperty('--weather-wallpaper', 'url("' + theme.weatherWallpaper + '")'); else root.removeProperty('--weather-wallpaper'); }
+        if (typeof theme.pcWallpaper === 'string') { if (theme.pcWallpaper) root.setProperty('--pc-wallpaper', 'url("' + theme.pcWallpaper + '")'); else root.removeProperty('--pc-wallpaper'); }
     }
     function ensureToastWrap() {
         var node = document.getElementById('appToastWrap');

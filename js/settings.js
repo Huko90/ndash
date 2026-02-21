@@ -566,6 +566,7 @@
 
     // === WALLPAPER UPLOADS ===
     var pendingWallpapers = null;
+    var wpKeyToDash = { btcWallpaper: 'btc', weatherWallpaper: 'weather', pcWallpaper: 'pc' };
     var wpCards = [
         { key: 'btcWallpaper', preview: el.wpBtcPreview, upload: el.wpBtcUpload, reset: el.wpBtcReset, file: el.wpBtcFile },
         { key: 'weatherWallpaper', preview: el.wpWeatherPreview, upload: el.wpWeatherUpload, reset: el.wpWeatherReset, file: el.wpWeatherFile },
@@ -574,14 +575,19 @@
     function refreshWallpaperPreviews() {
         var overrides = loadRuntimeOverrides();
         var theme = (overrides && overrides.theme) || {};
+        var cfgTheme = (window.BTCT_CONFIG && window.BTCT_CONFIG.theme) || {};
         wpCards.forEach(function(c) {
             if (!c.preview) return;
-            var val = theme[c.key];
+            var val = theme[c.key] || cfgTheme[c.key] || '';
             c.preview.style.backgroundImage = val ? 'url("' + val + '")' : '';
         });
     }
+    function hasDesktopWallpaperApi() {
+        return !!(window.DesktopApi && typeof window.DesktopApi.saveWallpaper === 'function');
+    }
     function setupWallpaperCard(c) {
         if (!c.preview || !c.upload || !c.reset || !c.file) return;
+        var dashName = wpKeyToDash[c.key];
         c.upload.addEventListener('click', function() { c.file.click(); });
         c.file.addEventListener('change', function() {
             var file = c.file.files[0];
@@ -593,15 +599,33 @@
             var reader = new FileReader();
             reader.onload = function() {
                 c.preview.style.backgroundImage = 'url("' + reader.result + '")';
-                if (!pendingWallpapers) pendingWallpapers = {};
-                pendingWallpapers[c.key] = reader.result;
-                setSettingsInfo('Wallpaper selected. Click Apply to use it.', 'ok');
+                if (hasDesktopWallpaperApi()) {
+                    setSettingsInfo('Saving wallpaper...', null);
+                    window.DesktopApi.saveWallpaper({ dashboard: dashName, dataUrl: reader.result })
+                        .then(function(result) {
+                            if (result && result.ok) {
+                                if (!pendingWallpapers) pendingWallpapers = {};
+                                pendingWallpapers[c.key] = result.url;
+                                setSettingsInfo('Wallpaper saved. Click Apply to use it.', 'ok');
+                            } else {
+                                setSettingsInfo((result && result.error) || 'Failed to save wallpaper.', 'err');
+                            }
+                        })
+                        .catch(function() { setSettingsInfo('Failed to save wallpaper.', 'err'); });
+                } else {
+                    if (!pendingWallpapers) pendingWallpapers = {};
+                    pendingWallpapers[c.key] = reader.result;
+                    setSettingsInfo('Wallpaper selected. Click Apply to use it.', 'ok');
+                }
             };
             reader.readAsDataURL(file);
             c.file.value = '';
         });
         c.reset.addEventListener('click', function() {
             c.preview.style.backgroundImage = '';
+            if (hasDesktopWallpaperApi()) {
+                window.DesktopApi.deleteWallpaper({ dashboard: dashName }).catch(function() {});
+            }
             if (!pendingWallpapers) pendingWallpapers = {};
             pendingWallpapers[c.key] = '';
             setSettingsInfo('Wallpaper reset to default. Click Apply.', 'ok');

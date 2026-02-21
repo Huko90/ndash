@@ -30,7 +30,8 @@ const DEFAULT_CONFIG = {
     thumbprint: '',
     firewallRuleNames: [],
     installedAt: 0
-  }
+  },
+  wallpapers: {}
 };
 
 function isObj(v) {

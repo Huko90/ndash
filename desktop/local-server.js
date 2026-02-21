@@ -321,6 +321,30 @@ class LocalServer {
       return;
     }
 
+    if (urlPath.startsWith('/wallpapers/')) {
+      const wpName = path.basename(urlPath);
+      if (!/^\w+\.(jpg|jpeg|png|webp)$/i.test(wpName)) {
+        res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end('invalid filename');
+        return;
+      }
+      const wpPath = path.join(this.userDataPath, 'wallpapers', wpName);
+      fs.stat(wpPath, (err, stat) => {
+        if (err || !stat.isFile()) {
+          res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+          res.end('not found');
+          return;
+        }
+        const ext = path.extname(wpPath).toLowerCase();
+        res.writeHead(200, {
+          'content-type': MIME[ext] || 'application/octet-stream',
+          'cache-control': 'no-store'
+        });
+        fs.createReadStream(wpPath).pipe(res);
+      });
+      return;
+    }
+
     const safePath = path.normalize(urlPath).replace(/^\.+/, '');
     let filePath = path.join(this.rootDir, safePath);
     if (urlPath === '/' || urlPath === '') filePath = path.join(this.rootDir, 'index.html');

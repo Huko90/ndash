@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld('DesktopApi', {
   openUpdateLog: () => ipcRenderer.invoke('app:open-update-log'),
   rerunWizard: () => ipcRenderer.invoke('wizard:rerun'),
   getTrustStatus: () => ipcRenderer.invoke('trust:status'),
-  installTrust: () => ipcRenderer.invoke('trust:install')
+  installTrust: () => ipcRenderer.invoke('trust:install'),
+  saveWallpaper: (payload) => ipcRenderer.invoke('wallpaper:save', payload),
+  deleteWallpaper: (payload) => ipcRenderer.invoke('wallpaper:delete', payload)
 });

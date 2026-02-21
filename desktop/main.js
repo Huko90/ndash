@@ -46,6 +46,13 @@ function runtimeConfigFromDesktopConfig(cfg) {
       pollMs: Number(cfg.pc.pollMs)
     }
   };
+  const wp = cfg.wallpapers || {};
+  if (wp.btc || wp.weather || wp.pc) {
+    if (!overrides.theme) overrides.theme = {};
+    if (wp.btc) overrides.theme.btcWallpaper = '/wallpapers/' + wp.btc;
+    if (wp.weather) overrides.theme.weatherWallpaper = '/wallpapers/' + wp.weather;
+    if (wp.pc) overrides.theme.pcWallpaper = '/wallpapers/' + wp.pc;
+  }
   return deepMerge(base, overrides);
 }
 
@@ -524,4 +531,51 @@ ipcMain.handle('trust:install', async (evt) => {
   } catch (err) {
     return { ok: false, error: (err && err.message) || 'Trust installation failed' };
   }
+});
+
+// --- Wallpaper storage ---
+
+ipcMain.handle('wallpaper:save', async (_evt, payload) => {
+  const dashboard = String(payload && payload.dashboard);
+  if (!['btc', 'weather', 'pc'].includes(dashboard)) {
+    return { ok: false, error: 'Invalid dashboard' };
+  }
+  const match = String(payload.dataUrl || '').match(/^data:image\/(jpeg|png|webp);base64,(.+)$/);
+  if (!match) return { ok: false, error: 'Invalid image data' };
+
+  const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length > 5 * 1024 * 1024) return { ok: false, error: 'Image too large (max 5 MB)' };
+
+  const wpDir = path.join(app.getPath('userData'), 'wallpapers');
+  fs.mkdirSync(wpDir, { recursive: true });
+
+  const cfg = configStore.get();
+  const oldFile = cfg.wallpapers && cfg.wallpapers[dashboard];
+  if (oldFile) try { fs.unlinkSync(path.join(wpDir, oldFile)); } catch (_) {}
+
+  const filename = dashboard + '.' + ext;
+  fs.writeFileSync(path.join(wpDir, filename), buffer);
+
+  const wallpapers = Object.assign({}, cfg.wallpapers || {});
+  wallpapers[dashboard] = filename;
+  configStore.update({ wallpapers });
+
+  return { ok: true, url: '/wallpapers/' + filename };
+});
+
+ipcMain.handle('wallpaper:delete', async (_evt, payload) => {
+  const dashboard = String(payload && payload.dashboard);
+  if (!['btc', 'weather', 'pc'].includes(dashboard)) {
+    return { ok: false, error: 'Invalid dashboard' };
+  }
+  const cfg = configStore.get();
+  const filename = cfg.wallpapers && cfg.wallpapers[dashboard];
+  if (filename) {
+    try { fs.unlinkSync(path.join(app.getPath('userData'), 'wallpapers', filename)); } catch (_) {}
+  }
+  const wallpapers = Object.assign({}, cfg.wallpapers || {});
+  delete wallpapers[dashboard];
+  configStore.update({ wallpapers });
+  return { ok: true };
 });
