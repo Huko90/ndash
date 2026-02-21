@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'ndash-v1.0.31';
+var CACHE_VERSION = 'ndash-v1.0.32';
 var SHELL_FILES = [
     '/',
     '/index.html',
