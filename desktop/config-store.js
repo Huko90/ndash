@@ -25,7 +25,12 @@ const DEFAULT_CONFIG = {
     httpsPort: 8443,
     preferHttps: true
   },
-  runtimeMode: 'app_open'
+  runtimeMode: 'app_open',
+  trust: {
+    thumbprint: '',
+    firewallRuleNames: [],
+    installedAt: 0
+  }
 };
 
 function isObj(v) {

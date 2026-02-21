@@ -9,5 +9,7 @@ contextBridge.exposeInMainWorld('DesktopApi', {
   copyText: (text) => ipcRenderer.invoke('app:copy-text', text),
   openFileInFolder: (path) => ipcRenderer.invoke('app:open-file', path),
   openUpdateLog: () => ipcRenderer.invoke('app:open-update-log'),
-  rerunWizard: () => ipcRenderer.invoke('wizard:rerun')
+  rerunWizard: () => ipcRenderer.invoke('wizard:rerun'),
+  getTrustStatus: () => ipcRenderer.invoke('trust:status'),
+  installTrust: () => ipcRenderer.invoke('trust:install')
 });

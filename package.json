@@ -11,7 +11,7 @@
     "start": "electron .",
     "wizard": "BTCT_FORCE_WIZARD=1 electron .",
     "build": "node scripts/build.js",
-    "lint:syntax": "node -e \"['js/config-base.js','js/config.js','js/lib/ws.js','js/app.js','js/settings.js','js/lib/indicators.js','js/btc.js','js/weather.js','js/pc.js','js/init.js','js/stocks.js','desktop/main.js','desktop/updater.js','desktop/preload.js','desktop/local-server.js','desktop/config-store.js'].forEach(f=>new Function(require('fs').readFileSync(f,'utf8'))); console.log('ok')\"",
+    "lint:syntax": "node -e \"['js/config-base.js','js/config.js','js/lib/ws.js','js/app.js','js/settings.js','js/lib/indicators.js','js/btc.js','js/weather.js','js/pc.js','js/init.js','js/stocks.js','desktop/main.js','desktop/updater.js','desktop/preload.js','desktop/local-server.js','desktop/config-store.js','desktop/win-trust.js'].forEach(f=>new Function(require('fs').readFileSync(f,'utf8'))); console.log('ok')\"",
     "test": "node --test tests/*.test.js",
     "test:all": "npm run lint:syntax && npm test",
     "test:smoke": "node scripts/smoke.js",
@@ -66,7 +66,8 @@
       "oneClick": true,
       "allowToChangeInstallationDirectory": false,
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "uninstallerIcon": "build/icon.ico",
+      "include": "build/installer.nsh"
     }
   }
 }

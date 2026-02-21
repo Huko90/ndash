@@ -5,6 +5,7 @@ const { autoUpdater } = require('electron-updater');
 const { ConfigStore, deepMerge } = require('./config-store');
 const { LocalServer } = require('./local-server');
 const updater = require('./updater');
+const winTrust = require('./win-trust');
 const baseRuntimeConfig = require('../js/config-base.js');
 
 let mainWindow = null;
@@ -380,8 +381,24 @@ ipcMain.handle('wizard:save', async (_evt, payload) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadURL(currentDashboardUrl());
     }
+    // Check if trust state is stale (cert or ports changed)
+    let trustStale = false;
+    if (serverState && serverState.certPath && process.platform === 'win32') {
+      try {
+        const trustState = next.trust || {};
+        const currentThumbprint = winTrust.computeThumbprint(serverState.certPath);
+        if (!trustState.thumbprint || trustState.thumbprint !== currentThumbprint) trustStale = true;
+        const expectedRules = ['nDash HTTP ' + next.network.httpPort, 'nDash HTTPS ' + next.network.httpsPort];
+        const storedRules = (trustState.firewallRuleNames || []).slice().sort();
+        if (expectedRules.slice().sort().join(',') !== storedRules.join(',')) trustStale = true;
+      } catch (_) {
+        trustStale = true;
+      }
+    }
+
     return {
       ok: true,
+      trustStale: trustStale,
       config: configStore.get(),
       server: serverState,
       configPath: configStore.getFilePath()
@@ -436,4 +453,75 @@ ipcMain.handle('app:open-file', async (_evt, p) => {
 ipcMain.handle('app:open-update-log', async () => {
   await shell.showItemInFolder(updater.updateLogPath());
   return { ok: true, path: updater.updateLogPath() };
+});
+
+// --- Trust automation (Windows cert + firewall) ---
+
+function isLocalSender(evt) {
+  try {
+    const url = evt.senderFrame && evt.senderFrame.url;
+    if (!url) return false;
+    if (url.startsWith('file://')) return true;
+    if (serverState && (url.startsWith(serverState.httpUrl) || url.startsWith(serverState.httpsUrl))) return true;
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
+ipcMain.handle('trust:status', async (evt) => {
+  if (!isLocalSender(evt)) return { supported: false, error: 'unauthorized' };
+  if (process.platform !== 'win32') return { supported: false };
+  if (!serverState || !serverState.certPath) return { supported: true, certExists: false };
+
+  const thumbprint = winTrust.computeThumbprint(serverState.certPath);
+  const trusted = await winTrust.isCertTrusted(thumbprint);
+  const cfg = configStore.get();
+  const desiredRules = [
+    { name: 'nDash HTTP ' + cfg.network.httpPort, port: cfg.network.httpPort, protocol: 'TCP' },
+    { name: 'nDash HTTPS ' + cfg.network.httpsPort, port: cfg.network.httpsPort, protocol: 'TCP' }
+  ];
+  const rules = await winTrust.checkFirewallRules(desiredRules);
+  const allValid = desiredRules.every(function(r) { var e = rules[r.name]; return e && e.valid; });
+
+  return {
+    supported: true,
+    certExists: true,
+    thumbprint: thumbprint,
+    certTrusted: trusted,
+    firewallRules: rules,
+    allRulesOk: allValid,
+    storedTrust: cfg.trust || {}
+  };
+});
+
+ipcMain.handle('trust:install', async (evt) => {
+  if (!isLocalSender(evt)) return { ok: false, error: 'unauthorized' };
+  if (process.platform !== 'win32') return { ok: false, error: 'Windows only' };
+  if (!serverState || !serverState.certPath) return { ok: false, error: 'Server not started' };
+
+  const cfg = configStore.get();
+  try {
+    const result = await winTrust.installTrust({
+      certPath: serverState.certPath,
+      httpPort: cfg.network.httpPort,
+      httpsPort: cfg.network.httpsPort,
+      userDataPath: app.getPath('userData'),
+      currentTrustState: cfg.trust || {}
+    });
+
+    if (result.ok || result.certInstalled) {
+      configStore.update({
+        trust: {
+          thumbprint: result.thumbprint,
+          firewallRuleNames: result.firewallRules || [],
+          installedAt: Date.now()
+        }
+      });
+    }
+
+    return result;
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'Trust installation failed' };
+  }
 });

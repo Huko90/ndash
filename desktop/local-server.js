@@ -412,4 +412,4 @@ class LocalServer {
   }
 }
 
-module.exports = { LocalServer, localIpv4List };
+module.exports = { LocalServer, localIpv4List, ensureCert };

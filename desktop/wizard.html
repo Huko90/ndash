@@ -127,12 +127,22 @@
         <div class="panel">
           <p class="hint" style="margin-bottom:6px">If you want to open the dashboard in a browser using the secure HTTPS final URL (phone/tablet/other PC), you must install this certificate on each client device so the browser trusts the connection. Without it, browsers will block or warn on HTTPS. (In-app desktop mode does not require this step.)</p>
           <ul class="check" style="margin-top:0">
-            <li>Windows quick steps: <span class="k">Open Certificate File -> Double click local-dashboard.crt -> Install Certificate -> Current User -> Automaticly select -> Certificate Store Selected -> Finish</span>.</li>
-            <li>Windows: import cert into <span class="k">Trusted Root Certification Authorities</span>.</li>
-            <li>Android/Tablet: install as trusted CA certificate.</li>
+            <li>Windows: certificate and firewall rules are set up automatically when you Save & Finish (one admin prompt).</li>
+            <li>Android/Tablet: install the certificate as a trusted CA certificate manually.</li>
             <li>Then open the final URL shown below.</li>
           </ul>
           <div id="urls" class="status muted k">Loading server URLs...</div>
+          <div id="trustSection" style="margin-top:10px;display:none">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:14px;font-weight:600">Windows Trust</span>
+              <span id="trustBadge" class="tag">checking...</span>
+            </div>
+            <p class="hint" id="trustHint" style="margin:0 0 6px">Checking certificate and firewall status...</p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button id="installTrustBtn" style="display:none">Install Certificate & Firewall Rules</button>
+              <span id="trustStatus" class="status muted"></span>
+            </div>
+          </div>
         </div>
         <div id="status" class="status muted"></div>
       </div>
@@ -244,6 +254,76 @@
         await window.DesktopApi.openDashboard();
       });
 
+      // --- Windows trust automation ---
+      const trustSection = $('trustSection');
+      const trustBadge = $('trustBadge');
+      const trustHint = $('trustHint');
+      const installTrustBtn = $('installTrustBtn');
+      const trustStatus = $('trustStatus');
+
+      async function checkTrustStatus() {
+        if (!window.DesktopApi.getTrustStatus) return;
+        try {
+          const ts = await window.DesktopApi.getTrustStatus();
+          if (!ts || !ts.supported) return;
+          trustSection.style.display = '';
+
+          if (ts.certTrusted && ts.allRulesOk) {
+            trustBadge.textContent = 'OK';
+            trustBadge.style.borderColor = 'rgba(0,230,118,.35)';
+            trustBadge.style.color = 'var(--ok)';
+            trustBadge.style.background = 'rgba(0,230,118,.1)';
+            trustHint.textContent = 'Certificate is trusted and firewall rules are active. No action needed.';
+            installTrustBtn.style.display = 'none';
+          } else {
+            trustBadge.textContent = 'Action needed';
+            trustBadge.style.borderColor = 'rgba(245,200,66,.35)';
+            trustBadge.style.color = 'var(--gold)';
+            trustBadge.style.background = 'rgba(245,200,66,.1)';
+            const parts = [];
+            if (!ts.certTrusted) parts.push('certificate not trusted');
+            if (!ts.allRulesOk) parts.push('firewall rules missing');
+            trustHint.textContent = 'Setup needed: ' + parts.join(' and ') + '. Click below or Save & Finish to set up automatically.';
+            installTrustBtn.style.display = '';
+          }
+        } catch (_) {}
+      }
+
+      async function doInstallTrust() {
+        trustStatus.className = 'status muted';
+        trustStatus.textContent = 'Setting up... a permission prompt may appear.';
+        installTrustBtn.disabled = true;
+
+        try {
+          const result = await window.DesktopApi.installTrust();
+          if (result.ok) {
+            trustStatus.className = 'status ok';
+            const parts = [];
+            if (result.certInstalled) parts.push('certificate installed');
+            else if (result.skippedCert) parts.push('certificate already trusted');
+            if (result.firewallRules && result.firewallRules.length) parts.push('firewall rules created');
+            else if (result.skippedFirewall) parts.push('firewall rules already active');
+            trustStatus.textContent = 'Done: ' + (parts.join('; ') || 'all set') + '.';
+            await checkTrustStatus();
+          } else {
+            trustStatus.className = 'status err';
+            trustStatus.textContent = result.error || 'Setup failed or was cancelled.';
+            installTrustBtn.disabled = false;
+          }
+        } catch (err) {
+          trustStatus.className = 'status err';
+          trustStatus.textContent = (err && err.message) || 'Trust setup failed.';
+          installTrustBtn.disabled = false;
+        }
+      }
+
+      if (installTrustBtn) {
+        installTrustBtn.addEventListener('click', doInstallTrust);
+      }
+
+      checkTrustStatus();
+
+      // --- Save & Finish ---
       $('finishBtn').addEventListener('click', async () => {
         const payload = {
           wizardCompleted: true,
@@ -268,7 +348,14 @@
         };
 
         try {
-          await window.DesktopApi.saveWizard(payload);
+          const saveResult = await window.DesktopApi.saveWizard(payload);
+          // Auto-trigger trust setup on Windows if needed
+          if (saveResult && saveResult.trustStale !== false) {
+            const ts = await window.DesktopApi.getTrustStatus();
+            if (ts && ts.supported && (!ts.certTrusted || !ts.allRulesOk)) {
+              await doInstallTrust();
+            }
+          }
         } catch (err) {
           status.className = 'status err';
           status.textContent = (err && err.message)
