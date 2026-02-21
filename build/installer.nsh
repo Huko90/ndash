@@ -32,4 +32,8 @@
     Delete $2
 
   skipCleanup:
+
+  ; Remove app data directory (config, certs, logs) for a clean reinstall
+  ReadEnvStr $0 APPDATA
+  RMDir /r "$0\${PRODUCT_NAME}"
 !macroend
