@@ -15,6 +15,7 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.crt': 'application/x-x509-ca-cert',
   '.txt': 'text/plain; charset=utf-8'

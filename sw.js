@@ -37,7 +37,8 @@ var NETWORK_ONLY = [
     /\/data\.json/,
     /fonts\.googleapis/,
     /fonts\.gstatic/,
-    /btct-runtime-config\.json/
+    /btct-runtime-config\.json/,
+    /\/wallpapers\//
 ];
 
 self.addEventListener('install', function(e) {

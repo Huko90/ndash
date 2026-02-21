@@ -1,6 +1,6 @@
 /* Fonts loaded via <link> in index.html for non-blocking render */
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--gold:#f5c842;--gold2:#f7931a;--green:#00e676;--red:#ff1744;--bg:#06070b;--card:rgba(255,255,255,0.022);--border:rgba(255,255,255,0.05);--dim:rgba(255,255,255,0.22);--mid:rgba(255,255,255,0.5);--hi:rgba(255,255,255,0.85);--sma:#3b82f6;--ema:#f97316;--boll:#a855f7;--rsi:#06b6d4;--btc-image-opacity:0.14;--weather-image-opacity:0.14;--pc-overlay-top:0.78;--pc-overlay-bottom:0.82;--btc-wallpaper:url('btcwallpaper.jpg');--weather-wallpaper:url('weatherwallpaper.jpg');--pc-wallpaper:url('pctempswallpaper.jpg')}
+:root{--gold:#f5c842;--gold2:#f7931a;--green:#00e676;--red:#ff1744;--bg:#06070b;--card:rgba(255,255,255,0.022);--border:rgba(255,255,255,0.05);--dim:rgba(255,255,255,0.22);--mid:rgba(255,255,255,0.5);--hi:rgba(255,255,255,0.85);--sma:#3b82f6;--ema:#f97316;--boll:#a855f7;--rsi:#06b6d4;--btc-image-opacity:0.14;--weather-image-opacity:0.14;--pc-overlay-top:0.78;--pc-overlay-bottom:0.82;--btc-wallpaper:url('/btcwallpaper.jpg');--weather-wallpaper:url('/weatherwallpaper.jpg');--pc-wallpaper:url('/pctempswallpaper.jpg')}
 html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:#fff;overflow:hidden;-webkit-font-smoothing:antialiased;margin:0;padding:0}
 canvas#particles{position:fixed;inset:0;z-index:0}
 .orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0;transition:background 2s,opacity 2s}
