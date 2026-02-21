@@ -46,6 +46,7 @@
       <button class="settings-tab" type="button" data-settings-tab="datasources">Data Sources</button>
       <button class="settings-tab" type="button" data-settings-tab="alerts">Alerts</button>
       <button class="settings-tab" type="button" data-settings-tab="display">Display</button>
+      <button class="settings-tab" type="button" data-settings-tab="wallpapers">Wallpapers</button>
       <button class="settings-tab" type="button" data-settings-tab="system">System</button>
     </div>
 
@@ -81,6 +82,38 @@
         <label>Weather Image Opacity<input id="setWeatherDim" type="range" min="0" max="1" step="0.01"></label>
         <label>PC Overlay Top<input id="setPcTopDim" type="range" min="0" max="1" step="0.01"></label>
         <label>PC Overlay Bottom<input id="setPcBottomDim" type="range" min="0" max="1" step="0.01"></label>
+      </div>
+    </div>
+
+    <div class="settings-tab-panel" data-tab-panel="wallpapers">
+      <div class="wp-grid">
+        <div class="wp-card">
+          <div class="wp-preview" id="wpBtcPreview"></div>
+          <span class="wp-label">BTC Tracker</span>
+          <div class="wp-actions">
+            <button class="settings-action" id="wpBtcUpload" type="button">Upload</button>
+            <button class="settings-action alt" id="wpBtcReset" type="button">Reset</button>
+          </div>
+          <input type="file" id="wpBtcFile" accept="image/*" hidden>
+        </div>
+        <div class="wp-card">
+          <div class="wp-preview" id="wpWeatherPreview"></div>
+          <span class="wp-label">Weather</span>
+          <div class="wp-actions">
+            <button class="settings-action" id="wpWeatherUpload" type="button">Upload</button>
+            <button class="settings-action alt" id="wpWeatherReset" type="button">Reset</button>
+          </div>
+          <input type="file" id="wpWeatherFile" accept="image/*" hidden>
+        </div>
+        <div class="wp-card">
+          <div class="wp-preview" id="wpPcPreview"></div>
+          <span class="wp-label">PC Monitor</span>
+          <div class="wp-actions">
+            <button class="settings-action" id="wpPcUpload" type="button">Upload</button>
+            <button class="settings-action alt" id="wpPcReset" type="button">Reset</button>
+          </div>
+          <input type="file" id="wpPcFile" accept="image/*" hidden>
+        </div>
       </div>
     </div>
 

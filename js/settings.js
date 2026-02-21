@@ -74,6 +74,8 @@
             el.settingsInfo.textContent = '';
             el.settingsInfo.classList.remove('ok', 'err');
         }
+        pendingWallpapers = null;
+        refreshWallpaperPreviews();
         if (el.settingsMatches) el.settingsMatches.innerHTML = '';
         if (window.DesktopApi && typeof window.DesktopApi.getState === 'function') {
             window.DesktopApi.getState().then(function(state) {
@@ -487,12 +489,18 @@
         overrides.theme.weatherImageOpacity = readNumber(el.setWeatherDim, fallbackTheme.weatherImageOpacity, 0, 1);
         overrides.theme.pcOverlayTop = readNumber(el.setPcTopDim, fallbackTheme.pcOverlayTop, 0, 1);
         overrides.theme.pcOverlayBottom = readNumber(el.setPcBottomDim, fallbackTheme.pcOverlayBottom, 0, 1);
+        if (pendingWallpapers) {
+            ['btcWallpaper', 'weatherWallpaper', 'pcWallpaper'].forEach(function(key) {
+                if (key in pendingWallpapers) overrides.theme[key] = pendingWallpapers[key];
+            });
+        }
         return overrides;
     }
     function applyOverrides(reloadPage) {
         var overrides = collectOverridesFromUi();
         saveRuntimeOverrides(overrides);
         mergeRuntimeConfig(overrides);
+        pendingWallpapers = null;
         if (reloadPage) {
             location.reload();
             return;
@@ -555,6 +563,51 @@
             setSettingsInfo(msg, 'err');
         }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
     }
+
+    // === WALLPAPER UPLOADS ===
+    var pendingWallpapers = null;
+    var wpCards = [
+        { key: 'btcWallpaper', preview: el.wpBtcPreview, upload: el.wpBtcUpload, reset: el.wpBtcReset, file: el.wpBtcFile },
+        { key: 'weatherWallpaper', preview: el.wpWeatherPreview, upload: el.wpWeatherUpload, reset: el.wpWeatherReset, file: el.wpWeatherFile },
+        { key: 'pcWallpaper', preview: el.wpPcPreview, upload: el.wpPcUpload, reset: el.wpPcReset, file: el.wpPcFile }
+    ];
+    function refreshWallpaperPreviews() {
+        var overrides = loadRuntimeOverrides();
+        var theme = (overrides && overrides.theme) || {};
+        wpCards.forEach(function(c) {
+            if (!c.preview) return;
+            var val = theme[c.key];
+            c.preview.style.backgroundImage = val ? 'url("' + val + '")' : '';
+        });
+    }
+    function setupWallpaperCard(c) {
+        if (!c.preview || !c.upload || !c.reset || !c.file) return;
+        c.upload.addEventListener('click', function() { c.file.click(); });
+        c.file.addEventListener('change', function() {
+            var file = c.file.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                setSettingsInfo('Image too large (max 5 MB).', 'err');
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function() {
+                c.preview.style.backgroundImage = 'url("' + reader.result + '")';
+                if (!pendingWallpapers) pendingWallpapers = {};
+                pendingWallpapers[c.key] = reader.result;
+                setSettingsInfo('Wallpaper selected. Click Apply to use it.', 'ok');
+            };
+            reader.readAsDataURL(file);
+            c.file.value = '';
+        });
+        c.reset.addEventListener('click', function() {
+            c.preview.style.backgroundImage = '';
+            if (!pendingWallpapers) pendingWallpapers = {};
+            pendingWallpapers[c.key] = '';
+            setSettingsInfo('Wallpaper reset to default. Click Apply.', 'ok');
+        });
+    }
+    wpCards.forEach(setupWallpaperCard);
 
     // === EVENT LISTENERS ===
     if (el.settingsBtn) el.settingsBtn.addEventListener('click', function() {

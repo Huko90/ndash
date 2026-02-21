@@ -1,7 +1,7 @@
 /* BTC DASHBOARD */
 .main{display:flex;position:absolute;inset:0;flex-direction:column;justify-content:space-between;gap:clamp(2px,0.5vh,6px);overflow:hidden;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0.25s ease;contain:layout style paint}
 .main.active{position:relative;opacity:1;visibility:visible;pointer-events:auto;flex:1;min-height:0}
-.main::before{content:'';position:absolute;inset:0;background:url('../btcwallpaper.jpg') center center / cover no-repeat;opacity:var(--btc-image-opacity);pointer-events:none}
+.main::before{content:'';position:absolute;inset:0;background:var(--btc-wallpaper) center center / cover no-repeat;opacity:var(--btc-image-opacity);pointer-events:none}
 .main::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,7,11,0.36),rgba(6,7,11,0.48));pointer-events:none}
 .main>*{position:relative;z-index:2;flex-shrink:1;min-height:0}
 /* PRICE */

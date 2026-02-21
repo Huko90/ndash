@@ -1,6 +1,6 @@
 /* Fonts loaded via <link> in index.html for non-blocking render */
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--gold:#f5c842;--gold2:#f7931a;--green:#00e676;--red:#ff1744;--bg:#06070b;--card:rgba(255,255,255,0.022);--border:rgba(255,255,255,0.05);--dim:rgba(255,255,255,0.22);--mid:rgba(255,255,255,0.5);--hi:rgba(255,255,255,0.85);--sma:#3b82f6;--ema:#f97316;--boll:#a855f7;--rsi:#06b6d4;--btc-image-opacity:0.14;--weather-image-opacity:0.14;--pc-overlay-top:0.78;--pc-overlay-bottom:0.82}
+:root{--gold:#f5c842;--gold2:#f7931a;--green:#00e676;--red:#ff1744;--bg:#06070b;--card:rgba(255,255,255,0.022);--border:rgba(255,255,255,0.05);--dim:rgba(255,255,255,0.22);--mid:rgba(255,255,255,0.5);--hi:rgba(255,255,255,0.85);--sma:#3b82f6;--ema:#f97316;--boll:#a855f7;--rsi:#06b6d4;--btc-image-opacity:0.14;--weather-image-opacity:0.14;--pc-overlay-top:0.78;--pc-overlay-bottom:0.82;--btc-wallpaper:url('btcwallpaper.jpg');--weather-wallpaper:url('weatherwallpaper.jpg');--pc-wallpaper:url('pctempswallpaper.jpg')}
 html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:#fff;overflow:hidden;-webkit-font-smoothing:antialiased;margin:0;padding:0}
 canvas#particles{position:fixed;inset:0;z-index:0}
 .orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0;transition:background 2s,opacity 2s}
@@ -154,3 +154,11 @@ canvas#particles{position:fixed;inset:0;z-index:0}
 /* Skip navigation */
 .skip-nav{position:absolute;top:-100%;left:50%;transform:translateX(-50%);padding:8px 16px;background:var(--bg);color:var(--gold);border:2px solid var(--gold);border-radius:8px;font-size:14px;font-weight:700;z-index:200;text-decoration:none;transition:top .2s}
 .skip-nav:focus{top:8px}
+/* Wallpaper tab */
+.wp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:clamp(8px,1.2vw,14px)}
+.wp-card{display:flex;flex-direction:column;gap:6px;align-items:center}
+.wp-preview{width:100%;aspect-ratio:16/9;border-radius:clamp(6px,0.8vmin,10px);border:1px solid var(--border);background-size:cover;background-position:center;background-color:rgba(255,255,255,0.03)}
+.wp-label{font-size:clamp(8px,1.1vmin,11px);color:var(--mid);font-weight:600}
+.wp-actions{display:flex;gap:6px}
+.wp-actions button{font-size:clamp(7px,1vmin,10px);padding:clamp(3px,0.5vh,5px) clamp(6px,0.9vw,10px)}
+@media(max-width:500px){.wp-grid{grid-template-columns:1fr}}

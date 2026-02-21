@@ -1,7 +1,7 @@
 /* WEATHER DASHBOARD */
 .weather-dash{display:flex;position:absolute;inset:0;flex-direction:column;gap:clamp(2px,0.4vh,6px);overflow:hidden;justify-content:flex-start;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0.25s ease;contain:layout style paint}
 .weather-dash.active{position:relative;opacity:1;visibility:visible;pointer-events:auto;flex:1;min-height:0}
-.weather-dash::before{content:'';position:absolute;inset:0;background:url('../weatherwallpaper.jpg') center center / cover no-repeat;opacity:var(--weather-image-opacity);pointer-events:none}
+.weather-dash::before{content:'';position:absolute;inset:0;background:var(--weather-wallpaper) center center / cover no-repeat;opacity:var(--weather-image-opacity);pointer-events:none}
 .weather-dash::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,7,11,0.36),rgba(6,7,11,0.48));pointer-events:none}
 .weather-dash>*{position:relative;z-index:2;flex-shrink:1;min-height:0}
 /* Current weather - hero section */

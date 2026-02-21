@@ -1,5 +1,5 @@
 /* PC DASHBOARD */
-.pc-dash{display:flex;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:clamp(21px,4vh,52px);overflow:hidden;background:url('../pctempswallpaper.jpg') center center / cover no-repeat;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0.25s ease;contain:layout style}
+.pc-dash{display:flex;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:clamp(21px,4vh,52px);overflow:hidden;background:var(--pc-wallpaper) center center / cover no-repeat;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0.25s ease;contain:layout style}
 .pc-dash::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,7,11,var(--pc-overlay-top)),rgba(6,7,11,var(--pc-overlay-bottom)));pointer-events:none}
 .pc-dash.active{position:relative;opacity:1;visibility:visible;pointer-events:auto;flex:1;min-height:0}
 .pc-dash>*{position:relative;z-index:1;flex-shrink:1;min-height:0}

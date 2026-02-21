@@ -60,7 +60,19 @@ var App = (function() {
         setRuntimeMode: $('setRuntimeMode'),
         settingsInfo: $('settingsInfo'),
         settingsHealth: $('settingsHealth'),
-        settingsMatches: $('settingsMatches')
+        settingsMatches: $('settingsMatches'),
+        wpBtcPreview: $('wpBtcPreview'),
+        wpBtcUpload: $('wpBtcUpload'),
+        wpBtcReset: $('wpBtcReset'),
+        wpBtcFile: $('wpBtcFile'),
+        wpWeatherPreview: $('wpWeatherPreview'),
+        wpWeatherUpload: $('wpWeatherUpload'),
+        wpWeatherReset: $('wpWeatherReset'),
+        wpWeatherFile: $('wpWeatherFile'),
+        wpPcPreview: $('wpPcPreview'),
+        wpPcUpload: $('wpPcUpload'),
+        wpPcReset: $('wpPcReset'),
+        wpPcFile: $('wpPcFile')
     };
     var sourceMap = { binance: el.btcStamp, weather: el.weatherStamp, pc: el.pcStamp };
     var sectionMap = {
@@ -324,6 +336,9 @@ var App = (function() {
         if (typeof theme.weatherImageOpacity === 'number') root.setProperty('--weather-image-opacity', String(theme.weatherImageOpacity));
         if (typeof theme.pcOverlayTop === 'number') root.setProperty('--pc-overlay-top', String(theme.pcOverlayTop));
         if (typeof theme.pcOverlayBottom === 'number') root.setProperty('--pc-overlay-bottom', String(theme.pcOverlayBottom));
+        if (typeof theme.btcWallpaper === 'string') root.setProperty('--btc-wallpaper', theme.btcWallpaper ? 'url("' + theme.btcWallpaper + '")' : '');
+        if (typeof theme.weatherWallpaper === 'string') root.setProperty('--weather-wallpaper', theme.weatherWallpaper ? 'url("' + theme.weatherWallpaper + '")' : '');
+        if (typeof theme.pcWallpaper === 'string') root.setProperty('--pc-wallpaper', theme.pcWallpaper ? 'url("' + theme.pcWallpaper + '")' : '');
     }
     function ensureToastWrap() {
         var node = document.getElementById('appToastWrap');
