@@ -89,7 +89,7 @@ describe('win-trust.buildFirewallScript', function() {
         assert.ok(script.includes('-LocalPort 9443'), 'Should use correct HTTPS port');
         assert.ok(script.includes('-Direction Inbound'), 'Should be inbound');
         assert.ok(script.includes('-Action Allow'), 'Should allow');
-        assert.ok(script.includes('-Profile Private'), 'Should be private profile');
+        assert.ok(script.includes('-Profile Private'), 'Should target private profile');
     });
 
     it('includes old rule removal when specified', function() {

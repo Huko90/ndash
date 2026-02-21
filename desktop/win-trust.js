@@ -102,11 +102,14 @@ function checkFirewallRules(rules) {
           result[r.name] = { exists: false, valid: false };
           return;
         }
+        var profileStr = String(entry.Profile || '');
+        var hasPrivate = profileStr === 'Any' || profileStr.indexOf('Private') !== -1;
         var valid = entry.Enabled === 'True' &&
           entry.Direction === 'Inbound' &&
           entry.Action === 'Allow' &&
           String(entry.LocalPort) === String(r.port) &&
-          entry.Protocol === r.protocol;
+          entry.Protocol === r.protocol &&
+          hasPrivate;
         result[r.name] = { exists: true, valid: valid, details: entry };
       });
       return result;
