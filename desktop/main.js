@@ -63,7 +63,8 @@ async function startLocalServer() {
       rootDir: projectRoot(),
       userDataPath: app.getPath('userData'),
       getRuntimeConfig: () => runtimeConfigFromDesktopConfig(configStore.get()),
-      getDesktopConfig: () => configStore.get()
+      getDesktopConfig: () => configStore.get(),
+      updateDesktopConfig: (patch) => configStore.update(patch)
     });
   }
   serverState = await localServer.start(cfg);

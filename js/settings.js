@@ -582,8 +582,21 @@
             c.preview.style.backgroundImage = val ? 'url("' + val + '")' : '';
         });
     }
-    function hasDesktopWallpaperApi() {
-        return !!(window.DesktopApi && typeof window.DesktopApi.saveWallpaper === 'function');
+    function saveWallpaperToServer(dashName, dataUrl) {
+        return fetch('/api/wallpapers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dashboard: dashName, dataUrl: dataUrl })
+        }).then(function(r) { return r.json(); })
+          .catch(function() { return null; });
+    }
+    function deleteWallpaperFromServer(dashName) {
+        return fetch('/api/wallpapers', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dashboard: dashName })
+        }).then(function(r) { return r.json(); })
+          .catch(function() { return null; });
     }
     function setupWallpaperCard(c) {
         if (!c.preview || !c.upload || !c.reset || !c.file) return;
@@ -599,33 +612,26 @@
             var reader = new FileReader();
             reader.onload = function() {
                 c.preview.style.backgroundImage = 'url("' + reader.result + '")';
-                if (hasDesktopWallpaperApi()) {
-                    setSettingsInfo('Saving wallpaper...', null);
-                    window.DesktopApi.saveWallpaper({ dashboard: dashName, dataUrl: reader.result })
-                        .then(function(result) {
-                            if (result && result.ok) {
-                                if (!pendingWallpapers) pendingWallpapers = {};
-                                pendingWallpapers[c.key] = result.url;
-                                setSettingsInfo('Wallpaper saved. Click Apply to use it.', 'ok');
-                            } else {
-                                setSettingsInfo((result && result.error) || 'Failed to save wallpaper.', 'err');
-                            }
-                        })
-                        .catch(function() { setSettingsInfo('Failed to save wallpaper.', 'err'); });
-                } else {
-                    if (!pendingWallpapers) pendingWallpapers = {};
-                    pendingWallpapers[c.key] = reader.result;
-                    setSettingsInfo('Wallpaper selected. Click Apply to use it.', 'ok');
-                }
+                setSettingsInfo('Saving wallpaper...', null);
+                saveWallpaperToServer(dashName, reader.result).then(function(result) {
+                    if (result && result.ok) {
+                        if (!pendingWallpapers) pendingWallpapers = {};
+                        pendingWallpapers[c.key] = result.url;
+                        setSettingsInfo('Wallpaper saved. Click Apply to use it.', 'ok');
+                    } else {
+                        // Server not available — fallback to localStorage data URL
+                        if (!pendingWallpapers) pendingWallpapers = {};
+                        pendingWallpapers[c.key] = reader.result;
+                        setSettingsInfo('Wallpaper selected. Click Apply to use it.', 'ok');
+                    }
+                });
             };
             reader.readAsDataURL(file);
             c.file.value = '';
         });
         c.reset.addEventListener('click', function() {
             c.preview.style.backgroundImage = '';
-            if (hasDesktopWallpaperApi()) {
-                window.DesktopApi.deleteWallpaper({ dashboard: dashName }).catch(function() {});
-            }
+            deleteWallpaperFromServer(dashName);
             if (!pendingWallpapers) pendingWallpapers = {};
             pendingWallpapers[c.key] = '';
             setSettingsInfo('Wallpaper reset to default. Click Apply.', 'ok');

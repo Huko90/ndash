@@ -69,6 +69,7 @@ class LocalServer {
     this.userDataPath = options.userDataPath;
     this.getRuntimeConfig = options.getRuntimeConfig;
     this.getDesktopConfig = options.getDesktopConfig;
+    this.updateDesktopConfig = options.updateDesktopConfig;
     this.httpServer = null;
     this.httpsServer = null;
     this.state = null;
@@ -318,6 +319,73 @@ class LocalServer {
       }
       res.writeHead(200, { 'content-type': MIME['.crt'], 'cache-control': 'no-store' });
       res.end(fs.readFileSync(this.state.certPath));
+      return;
+    }
+
+    // Wallpaper upload/delete API
+    if (urlPath === '/api/wallpapers' && (req.method === 'POST' || req.method === 'DELETE')) {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', () => {
+        try {
+          const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          const dashboard = String(body && body.dashboard || '');
+          if (!['btc', 'weather', 'pc'].includes(dashboard)) {
+            res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, error: 'Invalid dashboard' }));
+            return;
+          }
+          const wpDir = path.join(this.userDataPath, 'wallpapers');
+          const getCfg = this.getDesktopConfig;
+          const updateCfg = this.updateDesktopConfig;
+
+          if (req.method === 'DELETE') {
+            const cfg = getCfg ? getCfg() : {};
+            const filename = cfg.wallpapers && cfg.wallpapers[dashboard];
+            if (filename) try { fs.unlinkSync(path.join(wpDir, filename)); } catch (_) {}
+            if (updateCfg) {
+              const wallpapers = Object.assign({}, cfg.wallpapers || {});
+              delete wallpapers[dashboard];
+              updateCfg({ wallpapers });
+            }
+            res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: true }));
+            return;
+          }
+
+          // POST — save wallpaper
+          const match = String(body.dataUrl || '').match(/^data:image\/(jpeg|png|webp);base64,(.+)$/);
+          if (!match) {
+            res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, error: 'Invalid image data' }));
+            return;
+          }
+          const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+          const buffer = Buffer.from(match[2], 'base64');
+          if (buffer.length > 5 * 1024 * 1024) {
+            res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, error: 'Image too large (max 5 MB)' }));
+            return;
+          }
+          fs.mkdirSync(wpDir, { recursive: true });
+          const cfg = getCfg ? getCfg() : {};
+          const oldFile = cfg.wallpapers && cfg.wallpapers[dashboard];
+          if (oldFile) try { fs.unlinkSync(path.join(wpDir, oldFile)); } catch (_) {}
+
+          const filename = dashboard + '.' + ext;
+          fs.writeFileSync(path.join(wpDir, filename), buffer);
+          if (updateCfg) {
+            const wallpapers = Object.assign({}, cfg.wallpapers || {});
+            wallpapers[dashboard] = filename;
+            updateCfg({ wallpapers });
+          }
+          res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: true, url: '/wallpapers/' + filename }));
+        } catch (err) {
+          res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
+        }
+      });
       return;
     }
 
